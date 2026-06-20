@@ -1,66 +1,71 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import Link from "next/link";
+import useSWR from "swr";
+import * as repo from "@/lib/storage/repo";
+
+export default function Dashboard() {
+  const { data: projects, mutate, isLoading } = useSWR("projects", () => repo.listProjects());
+  const [name, setName] = useState("");
+
+  async function create() {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    await repo.createProject(trimmed);
+    setName("");
+    mutate();
+  }
+
+  async function remove(id: string) {
+    if (!confirm("Delete this project and everything in it?")) return;
+    await repo.deleteProject(id);
+    mutate();
+  }
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main style={{ maxWidth: 760, margin: "0 auto", padding: "48px 24px" }}>
+      <h1 style={{ marginBottom: 4 }}>Interior Planner</h1>
+      <p className="muted" style={{ marginTop: 0 }}>
+        Capture rooms, recover real dimensions, generate furniture, and arrange it in 3D.
+      </p>
+
+      <div className="card" style={{ marginTop: 24 }}>
+        <div className="row">
+          <input
+            placeholder="New apartment / project name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && create()}
+            style={{ flex: 1 }}
+          />
+          <button className="primary" onClick={create} disabled={!name.trim()}>
+            Create
+          </button>
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+
+      <div className="col" style={{ marginTop: 24 }}>
+        {isLoading && <p className="muted">Loading…</p>}
+        {projects?.length === 0 && (
+          <p className="muted">No projects yet. Create one above to get started.</p>
+        )}
+        {projects?.map((p) => (
+          <div key={p.id} className="card row" style={{ justifyContent: "space-between" }}>
+            <Link href={`/project/${p.id}`} style={{ fontSize: 16, fontWeight: 600 }}>
+              {p.name}
+            </Link>
+            <div className="row">
+              <span className="muted" style={{ fontSize: 12 }}>
+                {new Date(p.updatedAt).toLocaleDateString()}
+              </span>
+              <button className="danger" onClick={() => remove(p.id)}>
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </main>
   );
 }
