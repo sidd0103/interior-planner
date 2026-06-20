@@ -71,12 +71,14 @@ export function StaticFurnitureItem({ item }: { item: SceneItem }) {
 interface Props {
   item: SceneItem;
   selected: boolean;
+  /** This item intersects another — drawn with a warning outline. */
+  overlapping?: boolean;
   onSelect: (id: string) => void;
   /** Register/unregister this item's Object3D so the scene can attach the gizmo. */
   registerObject: (id: string, obj: THREE.Object3D | null) => void;
 }
 
-export function FurnitureItem({ item, selected, onSelect, registerObject }: Props) {
+export function FurnitureItem({ item, selected, overlapping, onSelect, registerObject }: Props) {
   const ref = useRef<THREE.Group>(null);
 
   useEffect(() => {
@@ -97,8 +99,8 @@ export function FurnitureItem({ item, selected, onSelect, registerObject }: Prop
       }}
     >
       <FurnitureVisual item={item} />
-      {selected && (
-        // Subtle selection outline: a wireframe box around the real-world bounds.
+      {(selected || overlapping) && (
+        // Wireframe bounds: blue when selected, red when intersecting another item.
         <mesh position={[0, item.realDims.height / 2, 0]}>
           <boxGeometry
             args={[
@@ -107,7 +109,12 @@ export function FurnitureItem({ item, selected, onSelect, registerObject }: Prop
               item.realDims.depth * 1.02,
             ]}
           />
-          <meshBasicMaterial color="#5b9dff" wireframe transparent opacity={0.5} />
+          <meshBasicMaterial
+            color={overlapping ? "#e2585b" : "#5b9dff"}
+            wireframe
+            transparent
+            opacity={0.5}
+          />
         </mesh>
       )}
     </group>

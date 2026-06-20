@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Grid, TransformControls } from "@react-three/drei";
 import * as THREE from "three";
 import { FurnitureItem } from "./FurnitureItem";
 import { useEditor } from "@/lib/scene/editorStore";
+import { findOverlaps } from "@/lib/geometry/collision";
 import type { SceneItem, TransformPatch } from "@/lib/scene/types";
 
 interface Props {
@@ -38,14 +39,18 @@ export function RoomScene({ items, onTransform, children, showGrid = true }: Pro
     setSelectedObj(selectedId ? objects.current.get(selectedId) ?? null : null);
   }, [selectedId, items]);
 
+  const overlaps = useMemo(() => findOverlaps(items), [items]);
+
   const commit = useCallback(() => {
     if (!selectedId || !selectedObj) return;
+    // Snap furniture to the floor: translation is locked to the X/Z plane.
+    selectedObj.position.y = 0;
     const p = selectedObj.position;
     const r = selectedObj.rotation;
     // We persist a single uniform scale; read it from x.
     const s = selectedObj.scale.x;
     onTransform(selectedId, {
-      position: [p.x, p.y, p.z],
+      position: [p.x, 0, p.z],
       rotation: [r.x, r.y, r.z],
       scale: s,
     });
@@ -76,22 +81,26 @@ export function RoomScene({ items, onTransform, children, showGrid = true }: Pro
         />
       )}
 
-      {children}
+      <Suspense fallback={null}>{children}</Suspense>
 
-      {items.map((item) => (
-        <FurnitureItem
-          key={item.id}
-          item={item}
-          selected={item.id === selectedId}
-          onSelect={select}
-          registerObject={registerObject}
-        />
-      ))}
+      <Suspense fallback={null}>
+        {items.map((item) => (
+          <FurnitureItem
+            key={item.id}
+            item={item}
+            selected={item.id === selectedId}
+            overlapping={overlaps.has(item.id)}
+            onSelect={select}
+            registerObject={registerObject}
+          />
+        ))}
+      </Suspense>
 
       {selectedObj && (
         <TransformControls
           object={selectedObj}
           mode={mode}
+          showY={mode !== "translate"}
           onMouseDown={() => setDragging(true)}
           onMouseUp={() => {
             setDragging(false);

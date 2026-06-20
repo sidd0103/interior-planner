@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import useSWR from "swr";
+import { Loader } from "@react-three/drei";
 import { SceneCanvas } from "@/components/scene/SceneCanvas";
 import { RoomScene } from "@/components/scene/RoomScene";
 import { SplatRoom } from "@/components/scene/SplatRoom";
@@ -58,6 +59,7 @@ export function RoomEditor({ projectId, roomId }: Props) {
         <div className="muted" style={{ position: "absolute", bottom: 12, left: 12, fontSize: 12 }}>
           {items.length} item(s) · drag the gizmo to move · click empty space to deselect
         </div>
+        <Loader />
       </div>
 
       <FurniturePanel

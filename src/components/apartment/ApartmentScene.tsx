@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Grid, TransformControls } from "@react-three/drei";
+import { OrbitControls, Grid, TransformControls, Loader } from "@react-three/drei";
 import useSWR from "swr";
 import * as THREE from "three";
 import { ApartmentRoomGroup } from "./ApartmentRoomGroup";
@@ -90,16 +90,18 @@ export function ApartmentScene({ projectId }: { projectId: string }) {
           infiniteGrid
         />
 
-        {placeable.map((room, i) => (
-          <ApartmentRoomGroup
-            key={room.id}
-            room={room}
-            defaultPosition={[i * 6, 0, 0] as Vec3}
-            selected={room.id === selectedId}
-            onSelect={setSelectedId}
-            registerObject={registerObject}
-          />
-        ))}
+        <Suspense fallback={null}>
+          {placeable.map((room, i) => (
+            <ApartmentRoomGroup
+              key={room.id}
+              room={room}
+              defaultPosition={[i * 6, 0, 0] as Vec3}
+              selected={room.id === selectedId}
+              onSelect={setSelectedId}
+              registerObject={registerObject}
+            />
+          ))}
+        </Suspense>
 
         {selectedObj && (
           <TransformControls
@@ -112,6 +114,8 @@ export function ApartmentScene({ projectId }: { projectId: string }) {
           />
         )}
       </Canvas>
+
+      <Loader />
 
       {placeable.length === 0 && (
         <div
