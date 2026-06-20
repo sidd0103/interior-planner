@@ -3,6 +3,8 @@
 import useSWR from "swr";
 import Link from "next/link";
 import * as repo from "@/lib/storage/repo";
+import { FurnitureGenerator } from "./FurnitureGenerator";
+import { GenerationStatus } from "./GenerationStatus";
 
 interface Props {
   projectId: string;
@@ -12,29 +14,23 @@ interface Props {
 }
 
 /**
- * Right-hand panel for the room editor: the project's furniture library with a
- * "place" action. (Phase 3 adds the photo → 3D generator above the list.)
+ * Right-hand panel for the room editor: generate furniture from a photo, then
+ * place any library asset into the room.
  */
 export function FurniturePanel({ projectId, roomName, placedCount, onPlace }: Props) {
   const { data: furniture, mutate } = useSWR(["furniture", projectId], () =>
     repo.listFurniture(projectId),
   );
 
-  // Dev affordance: create a placeholder asset (no mesh yet) to test placement.
-  async function addPlaceholder() {
-    await repo.createFurniture({
-      projectId,
-      name: "Placeholder",
-      sourceImageAssetId: "",
-      realDims: { width: 0.8, height: 0.75, depth: 0.8 },
-    });
+  async function remove(id: string) {
+    await repo.deleteFurniture(id);
     mutate();
   }
 
   return (
     <aside
       style={{
-        width: 320,
+        width: 340,
         height: "100vh",
         borderLeft: "1px solid var(--border)",
         background: "var(--panel)",
@@ -53,28 +49,32 @@ export function FurniturePanel({ projectId, roomName, placedCount, onPlace }: Pr
         </p>
       </div>
 
-      <button onClick={addPlaceholder}>+ Add placeholder</button>
+      <FurnitureGenerator projectId={projectId} onCreated={mutate} />
 
       <div className="col" style={{ marginTop: 8 }}>
         {furniture?.length === 0 && (
           <p className="muted" style={{ fontSize: 13 }}>
-            No furniture yet. Add a placeholder to test the editor, or generate from a photo
-            (coming next).
+            No furniture yet. Generate one from a photo above.
           </p>
         )}
         {furniture?.map((f) => (
-          <div key={f.id} className="card row" style={{ justifyContent: "space-between" }}>
-            <div className="col" style={{ gap: 2 }}>
+          <div key={f.id} className="card col" style={{ gap: 8 }}>
+            <div className="row" style={{ justifyContent: "space-between" }}>
               <span style={{ fontWeight: 600, fontSize: 14 }}>{f.name}</span>
-              <span className="muted" style={{ fontSize: 11 }}>
-                {f.realDims.width.toFixed(2)}×{f.realDims.depth.toFixed(2)}×
-                {f.realDims.height.toFixed(2)} m
-                {f.glbAssetId ? " · mesh ✓" : " · box"}
-              </span>
+              <GenerationStatus furniture={f} onUpdate={mutate} />
             </div>
-            <button className="primary" onClick={() => onPlace(f.id)} style={{ padding: "6px 10px" }}>
-              Place
-            </button>
+            <span className="muted" style={{ fontSize: 11 }}>
+              {(f.realDims.width * 100).toFixed(0)}×{(f.realDims.depth * 100).toFixed(0)}×
+              {(f.realDims.height * 100).toFixed(0)} cm
+            </span>
+            <div className="row" style={{ justifyContent: "space-between" }}>
+              <button className="primary" onClick={() => onPlace(f.id)} style={{ padding: "6px 12px" }}>
+                Place in room
+              </button>
+              <button className="danger" onClick={() => remove(f.id)} style={{ padding: "6px 10px" }}>
+                Delete
+              </button>
+            </div>
           </div>
         ))}
       </div>
