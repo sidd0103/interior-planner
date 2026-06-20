@@ -50,6 +50,24 @@ function PlaceholderBox({ realDims }: { realDims: SceneItem["realDims"] }) {
   );
 }
 
+/** The visual (GLB or placeholder box) for an item, with no interaction. */
+function FurnitureVisual({ item }: { item: SceneItem }) {
+  return item.glbUrl ? (
+    <GLBModel url={item.glbUrl} realDims={item.realDims} />
+  ) : (
+    <PlaceholderBox realDims={item.realDims} />
+  );
+}
+
+/** Non-interactive placement, used in the apartment overview. */
+export function StaticFurnitureItem({ item }: { item: SceneItem }) {
+  return (
+    <group position={item.position} rotation={item.rotation} scale={item.scale}>
+      <FurnitureVisual item={item} />
+    </group>
+  );
+}
+
 interface Props {
   item: SceneItem;
   selected: boolean;
@@ -78,11 +96,7 @@ export function FurnitureItem({ item, selected, onSelect, registerObject }: Prop
         onSelect(item.id);
       }}
     >
-      {item.glbUrl ? (
-        <GLBModel url={item.glbUrl} realDims={item.realDims} />
-      ) : (
-        <PlaceholderBox realDims={item.realDims} />
-      )}
+      <FurnitureVisual item={item} />
       {selected && (
         // Subtle selection outline: a wireframe box around the real-world bounds.
         <mesh position={[0, item.realDims.height / 2, 0]}>
