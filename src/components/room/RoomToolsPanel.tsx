@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { RoomCaptureWizard } from "@/components/capture/RoomCaptureWizard";
+import { MeasureReconciler } from "@/components/measure/MeasureReconciler";
 import type { Room } from "@/lib/storage/types";
 
 interface Props {
@@ -10,8 +12,9 @@ interface Props {
   onUpdate: () => void;
 }
 
-/** Left panel: room-level tools — capture and (Phase 5) dimension reconciliation. */
+/** Left panel: room-level tools — capture and dimension reconciliation. */
 export function RoomToolsPanel({ projectId, room, onUpdate }: Props) {
+  const [measuring, setMeasuring] = useState(false);
   return (
     <aside
       style={{
@@ -38,6 +41,20 @@ export function RoomToolsPanel({ projectId, room, onUpdate }: Props) {
       </div>
 
       <RoomCaptureWizard room={room} onUpdate={onUpdate} />
+
+      {room.splatAssetId && (
+        <button className="primary" onClick={() => setMeasuring(true)}>
+          {room.metricTransform ? "Re-recover dimensions" : "Recover dimensions"}
+        </button>
+      )}
+
+      {measuring && (
+        <MeasureReconciler
+          room={room}
+          onClose={() => setMeasuring(false)}
+          onSolved={onUpdate}
+        />
+      )}
     </aside>
   );
 }
