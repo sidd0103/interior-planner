@@ -60,8 +60,10 @@ export interface Room {
   name: string;
   /** Blob key for the source capture video, if retained. */
   videoAssetId?: Id;
-  /** Blob key for the generated splat (.ply / .ksplat / .spz). */
+  /** Blob key for the generated splat (.ply / .ksplat / .splat / .spz). */
   splatAssetId?: Id;
+  /** Format of the stored splat blob (it has no file extension in the blob store). */
+  splatFormat?: "spz" | "ply" | "splat" | "ksplat";
   /** The in-flight or completed World Labs capture job. */
   captureJobId?: Id;
   /** Similarity transform that makes the splat metric (set after reconciliation). */

@@ -1,12 +1,14 @@
 /**
  * Server-only adapter for the World Labs Marble "World API".
- * Docs: https://docs.worldlabs.ai/api  ·  https://www.worldlabs.ai/blog/announcing-the-world-api
+ * Docs: https://docs.worldlabs.ai/api
  *
- * ⚠️ VERIFY AGAINST LIVE DOCS: the Marble API is new and its exact request /
- * response field names may differ from what is encoded below. Everything Marble-
- * specific is isolated in this file, so correcting the wire format here requires
- * no changes elsewhere. The generate → poll → download lifecycle and the splat
- * output (Gaussian splats) are stable per the announcement.
+ * Flow (verified against the docs):
+ *   1. prepareUpload()  → POST /media-assets:prepare_upload → { mediaAssetId, uploadUrl }
+ *   2. (client) PUT the file bytes to uploadUrl                (proxied via our /upload route)
+ *   3. generateWorld()  → POST /worlds:generate (world_prompt references the asset) → operationId
+ *   4. getOperation()   → GET /operations/{id} → done + the splat (.spz) download URL
+ *
+ * Output splats are SPZ (Gaussian splat) at several resolutions; we use 500k.
  */
 
 import "server-only";
@@ -14,23 +16,21 @@ import { requireEnv } from "./env";
 
 const BASE = "https://api.worldlabs.ai/marble/v1";
 
-export type WorldStatus = "queued" | "processing" | "done" | "error";
+export type AssetKind = "image" | "video";
 
-export interface WorldResult {
-  id: string;
-  status: WorldStatus;
-  /** 0..1 */
-  progress: number;
-  /** Download URL for the generated splat, present when status === "done". */
-  splatUrl?: string;
-  error?: string;
+export interface PreparedUpload {
+  mediaAssetId: string;
+  uploadUrl: string;
+  /** Headers the PUT to the signed URL must include (e.g. x-goog-content-length-range). */
+  requiredHeaders: Record<string, string>;
 }
 
-export interface GenerateWorldInput {
-  /** Input frames / panorama as data URIs or public URLs (at least one). */
-  imageUrls?: string[];
-  /** Alternatively a short video clip as a data URI or URL. */
-  videoUrl?: string;
+export interface OperationResult {
+  id: string;
+  done: boolean;
+  /** Download URL for the generated .spz splat, present when done. */
+  splatUrl?: string;
+  error?: string;
 }
 
 function authHeaders(): Record<string, string> {
@@ -40,65 +40,102 @@ function authHeaders(): Record<string, string> {
   };
 }
 
-/** Normalize the provider's status vocabulary to ours. */
-function normalizeStatus(s: string): WorldStatus {
-  const v = s.toLowerCase();
-  if (v.includes("succeed") || v === "done" || v === "completed") return "done";
-  if (v.includes("fail") || v === "error" || v.includes("cancel")) return "error";
-  if (v.includes("process") || v.includes("running") || v.includes("progress")) return "processing";
-  return "queued";
+/** Strip an `operations/` (or similar) resource prefix to the bare id. */
+function bareId(name: string): string {
+  const slash = name.lastIndexOf("/");
+  return slash === -1 ? name : name.slice(slash + 1);
 }
 
-/** Start a world generation job; returns the provider world id for polling. */
-export async function generateWorld(input: GenerateWorldInput): Promise<string> {
-  const inputs = [
-    ...(input.imageUrls ?? []).map((url) => ({ type: "image", url })),
-    ...(input.videoUrl ? [{ type: "video", url: input.videoUrl }] : []),
-  ];
-  if (inputs.length === 0) throw new Error("generateWorld requires at least one image or a video");
+/** Step 1: ask for a signed upload URL for a local file. */
+export async function prepareUpload(
+  fileName: string,
+  kind: AssetKind,
+  extension: string,
+): Promise<PreparedUpload> {
+  const res = await fetch(`${BASE}/media-assets:prepare_upload`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ file_name: fileName, kind, extension }),
+  });
+  if (!res.ok) throw new Error(`prepare_upload failed (${res.status}): ${await res.text()}`);
+
+  const j = (await res.json()) as {
+    media_asset?: { media_asset_id?: string; id?: string };
+    upload_info?: { upload_url?: string; required_headers?: Record<string, string> };
+  };
+  const mediaAssetId = j.media_asset?.media_asset_id ?? j.media_asset?.id;
+  const uploadUrl = j.upload_info?.upload_url;
+  if (!mediaAssetId || !uploadUrl) {
+    throw new Error("prepare_upload returned no media_asset id / upload_url");
+  }
+  return { mediaAssetId, uploadUrl, requiredHeaders: j.upload_info?.required_headers ?? {} };
+}
+
+/** Step 3: start generation from an uploaded asset; returns the operation id. */
+export async function generateWorld(
+  mediaAssetId: string,
+  kind: AssetKind,
+  displayName: string,
+): Promise<string> {
+  const worldPrompt =
+    kind === "video"
+      ? { type: "video", video_prompt: { source: "media_asset", media_asset_id: mediaAssetId } }
+      : { type: "image", image_prompt: { source: "media_asset", media_asset_id: mediaAssetId } };
 
   const res = await fetch(`${BASE}/worlds:generate`, {
     method: "POST",
     headers: authHeaders(),
-    body: JSON.stringify({ inputs, output_format: "ply" }),
+    body: JSON.stringify({
+      display_name: displayName,
+      model: "marble-1.1",
+      world_prompt: worldPrompt,
+    }),
   });
-  if (!res.ok) throw new Error(`World Labs generate failed (${res.status}): ${await res.text()}`);
+  if (!res.ok) throw new Error(`worlds:generate failed (${res.status}): ${await res.text()}`);
 
-  const j = (await res.json()) as { id?: string; name?: string; world_id?: string };
-  const id = j.id ?? j.world_id ?? j.name;
-  if (!id) throw new Error("World Labs generate returned no world id");
-  return id;
+  const j = (await res.json()) as { name?: string; id?: string; operation?: { name?: string } };
+  const name = j.name ?? j.operation?.name ?? j.id;
+  if (!name) throw new Error("worlds:generate returned no operation id");
+  return bareId(name);
 }
 
-/** Poll a world's state. */
-export async function getWorld(worldId: string): Promise<WorldResult> {
-  const res = await fetch(`${BASE}/worlds/${worldId}`, { headers: authHeaders() });
-  if (!res.ok) throw new Error(`World Labs get failed (${res.status}): ${await res.text()}`);
+/** Extract the .spz splat URL from a completed operation's World response. */
+function extractSplatUrl(response: unknown): string | undefined {
+  const r = response as
+    | { assets?: { splats?: { spz_urls?: Record<string, string> } } }
+    | undefined;
+  const urls = r?.assets?.splats?.spz_urls;
+  if (!urls) return undefined;
+  return urls["500k"] ?? urls["full_res"] ?? urls["100k"] ?? Object.values(urls)[0];
+}
+
+/** Step 4: poll a generation operation. */
+export async function getOperation(operationId: string): Promise<OperationResult> {
+  const res = await fetch(`${BASE}/operations/${bareId(operationId)}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`operations get failed (${res.status}): ${await res.text()}`);
 
   const j = (await res.json()) as {
-    id?: string;
-    status?: string;
-    progress?: number;
-    assets?: { splat_url?: string; ply_url?: string; url?: string };
-    error?: string;
+    name?: string;
+    done?: boolean;
+    error?: { message?: string } | string;
+    response?: unknown;
   };
-  const splatUrl = j.assets?.splat_url ?? j.assets?.ply_url ?? j.assets?.url;
+  const error = typeof j.error === "string" ? j.error : j.error?.message;
   return {
-    id: j.id ?? worldId,
-    status: normalizeStatus(j.status ?? "queued"),
-    progress: j.progress ?? 0,
-    splatUrl,
-    error: j.error,
+    id: operationId,
+    done: !!j.done,
+    splatUrl: j.done ? extractSplatUrl(j.response) : undefined,
+    error,
   };
 }
 
 /** Fetch the generated splat bytes server-side (avoids browser CORS on signed URLs). */
-export async function downloadSplat(worldId: string): Promise<ArrayBuffer> {
-  const world = await getWorld(worldId);
-  if (world.status !== "done" || !world.splatUrl) {
-    throw new Error(`World ${worldId} has no splat (status ${world.status})`);
+export async function downloadSplat(operationId: string): Promise<ArrayBuffer> {
+  const op = await getOperation(operationId);
+  if (!op.done || !op.splatUrl) {
+    throw new Error(`Operation ${operationId} has no splat yet (done=${op.done})`);
   }
-  const res = await fetch(world.splatUrl);
+  const res = await fetch(op.splatUrl);
   if (!res.ok) throw new Error(`Splat download failed (${res.status})`);
   return res.arrayBuffer();
 }

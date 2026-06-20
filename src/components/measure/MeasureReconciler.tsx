@@ -279,6 +279,7 @@ export function MeasureReconciler({ room, onClose, onSolved }: Props) {
           {splatUrl && (
             <MeasureScene
               splatUrl={splatUrl}
+              splatFormat={room.splatFormat}
               markers={markers}
               onMarkersChange={onMarkersChange}
               contextSpans={contextSpans}

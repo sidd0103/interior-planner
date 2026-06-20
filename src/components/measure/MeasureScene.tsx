@@ -14,6 +14,7 @@ export interface ContextSpan {
 
 interface Props {
   splatUrl: string;
+  splatFormat?: "spz" | "ply" | "splat" | "ksplat";
   /** Endpoints of the measurement currently being placed (raw splat space). */
   markers: { a: Vec3; b: Vec3 } | null;
   onMarkersChange: (a: Vec3, b: Vec3) => void;
@@ -65,7 +66,13 @@ function Marker({
  * measurement, plus context lines for already-placed spans. Reconciliation runs
  * in raw splat space; the metric transform is applied elsewhere once solved.
  */
-export function MeasureScene({ splatUrl, markers, onMarkersChange, contextSpans }: Props) {
+export function MeasureScene({
+  splatUrl,
+  splatFormat,
+  markers,
+  onMarkersChange,
+  contextSpans,
+}: Props) {
   const [selected, setSelected] = useState<"a" | "b" | null>(null);
   const objs = useRef<{ a: THREE.Object3D | null; b: THREE.Object3D | null }>({ a: null, b: null });
   const [selectedObj, setSelectedObj] = useState<THREE.Object3D | null>(null);
@@ -98,7 +105,7 @@ export function MeasureScene({ splatUrl, markers, onMarkersChange, contextSpans 
         infiniteGrid
       />
 
-      <SplatRoom url={splatUrl} />
+      <SplatRoom url={splatUrl} format={splatFormat} />
 
       {contextSpans.map((s, i) => (
         <Line

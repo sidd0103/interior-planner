@@ -12,10 +12,18 @@ declare module "@mkkellogg/gaussian-splats-3d" {
     [key: string]: unknown;
   }
 
+  export enum SceneFormat {
+    Splat = 0,
+    KSplat = 1,
+    Ply = 2,
+    Spz = 3,
+  }
+
   export interface AddSplatSceneOptions {
     showLoadingUI?: boolean;
     splatAlphaRemovalThreshold?: number;
     progressiveLoad?: boolean;
+    format?: SceneFormat;
     [key: string]: unknown;
   }
 

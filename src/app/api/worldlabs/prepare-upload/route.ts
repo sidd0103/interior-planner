@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { generateWorld } from "@/lib/clients/worldLabsClient";
+import { prepareUpload } from "@/lib/clients/worldLabsClient";
 
 const Body = z.object({
-  mediaAssetId: z.string().min(1),
+  fileName: z.string().min(1),
   kind: z.enum(["image", "video"]),
-  displayName: z.string().optional(),
+  extension: z.string().min(1),
 });
 
 export async function POST(req: NextRequest) {
@@ -16,12 +16,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
   try {
-    const operationId = await generateWorld(
-      parsed.mediaAssetId,
-      parsed.kind,
-      parsed.displayName ?? "Room capture",
-    );
-    return NextResponse.json({ operationId });
+    const prepared = await prepareUpload(parsed.fileName, parsed.kind, parsed.extension);
+    return NextResponse.json(prepared);
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }

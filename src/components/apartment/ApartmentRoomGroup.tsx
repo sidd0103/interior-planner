@@ -47,7 +47,14 @@ export function ApartmentRoomGroup({
         onSelect(room.id);
       }}
     >
-      {splatUrl && <SplatRoom url={splatUrl} transform={room.metricTransform} lowDetail />}
+      {splatUrl && (
+        <SplatRoom
+          url={splatUrl}
+          format={room.splatFormat}
+          transform={room.metricTransform}
+          lowDetail
+        />
+      )}
       {items.map((item) => (
         <StaticFurnitureItem key={item.id} item={item} />
       ))}

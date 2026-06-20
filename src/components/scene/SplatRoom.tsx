@@ -6,8 +6,10 @@ import * as THREE from "three";
 import type { MetricTransform } from "@/lib/storage/types";
 
 interface Props {
-  /** Object URL of the splat file (.ply / .ksplat / .splat). */
+  /** Object URL of the splat file (.ply / .ksplat / .splat / .spz). */
   url: string;
+  /** Format of the blob — required because blob URLs carry no file extension. */
+  format?: "spz" | "ply" | "splat" | "ksplat";
   /** Similarity transform that maps raw splat space → metric world space. */
   transform?: MetricTransform;
   /** Render at reduced fidelity (apartment overview). */
@@ -21,7 +23,7 @@ interface Props {
  * coexist in one scene; keep furniture materials opaque (the splat renderer
  * does not composite transparent meshes correctly).
  */
-export function SplatRoom({ url, transform, lowDetail }: Props) {
+export function SplatRoom({ url, format, transform, lowDetail }: Props) {
   const gl = useThree((s) => s.gl);
   const groupRef = useRef<THREE.Group>(null);
   const [viewer, setViewer] = useState<THREE.Object3D | null>(null);
@@ -33,19 +35,34 @@ export function SplatRoom({ url, transform, lowDetail }: Props) {
     // Dynamically import the splat library (it touches browser globals) so it
     // never runs during SSR.
     (async () => {
-      const { DropInViewer } = await import("@mkkellogg/gaussian-splats-3d");
+      const GS = await import("@mkkellogg/gaussian-splats-3d");
       if (disposed) return;
-      const v = new DropInViewer({
+      const v = new GS.DropInViewer({
         gpuAcceleratedSort: true,
         sharedMemoryForWorkers: false, // avoids cross-origin-isolation requirement
         renderer: gl,
       });
       instance = v as unknown as { dispose?: () => void };
+
+      // Blob URLs carry no extension, so the loader can't infer the format —
+      // pass it explicitly. SPZ can't be progressively loaded, so disable that.
+      const fmt =
+        format === "spz"
+          ? GS.SceneFormat.Spz
+          : format === "ply"
+            ? GS.SceneFormat.Ply
+            : format === "splat"
+              ? GS.SceneFormat.Splat
+              : format === "ksplat"
+                ? GS.SceneFormat.KSplat
+                : undefined;
+
       try {
         await v.addSplatScene(url, {
           showLoadingUI: false,
           splatAlphaRemovalThreshold: 5,
-          progressiveLoad: !lowDetail,
+          progressiveLoad: format === "spz" ? false : !lowDetail,
+          ...(fmt !== undefined ? { format: fmt } : {}),
         });
         if (!disposed) setViewer(v as unknown as THREE.Object3D);
       } catch (err) {

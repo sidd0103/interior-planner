@@ -53,7 +53,13 @@ export function RoomEditor({ projectId, roomId }: Props) {
         <Toolbar onDelete={onDelete} />
         <SceneCanvas>
           <RoomScene items={items} onTransform={onTransform}>
-            {splatUrl && <SplatRoom url={splatUrl} transform={room?.metricTransform} />}
+            {splatUrl && (
+              <SplatRoom
+                url={splatUrl}
+                format={room?.splatFormat}
+                transform={room?.metricTransform}
+              />
+            )}
           </RoomScene>
         </SceneCanvas>
         <div className="muted" style={{ position: "absolute", bottom: 12, left: 12, fontSize: 12 }}>
