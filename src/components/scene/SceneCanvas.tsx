@@ -1,10 +1,9 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
 import { useEditor } from "@/lib/scene/editorStore";
 import { SplatStage } from "./SplatStage";
-import { WalkControls, type InitialView } from "./WalkControls";
+import { FirstPersonControls, type InitialView } from "./FirstPersonControls";
 
 interface Props {
   children: React.ReactNode;
@@ -13,9 +12,9 @@ interface Props {
 }
 
 /**
- * R3F <Canvas> root with orbit controls + WASD walking. `makeDefault` lets
- * drei's TransformControls auto-disable orbiting while a gizmo is dragged.
- * Clicking empty space clears the selection.
+ * R3F <Canvas> root with first-person navigation: drag to look, scroll to move
+ * forward/back, WASD to walk. Clicking empty space clears the selection;
+ * furniture gizmos still work (look is suppressed while dragging a gizmo).
  */
 export function SceneCanvas({ children, initialView }: Props) {
   const select = useEditor((s) => s.select);
@@ -25,12 +24,11 @@ export function SceneCanvas({ children, initialView }: Props) {
       shadows
       dpr={[1, 2]}
       gl={{ antialias: false, alpha: false, premultipliedAlpha: false }}
-      camera={{ position: [4, 3, 6], fov: 55, near: 0.01, far: 1000 }}
+      camera={{ position: [4, 3, 6], fov: 60, near: 0.01, far: 1000 }}
       onPointerMissed={() => select(null)}
       style={{ width: "100%", height: "100%", background: "#0b0d11" }}
     >
-      <OrbitControls makeDefault enableDamping dampingFactor={0.12} minDistance={0.05} maxDistance={60} />
-      <WalkControls initialView={initialView} />
+      <FirstPersonControls initialView={initialView} />
       <SplatStage>{children}</SplatStage>
     </Canvas>
   );

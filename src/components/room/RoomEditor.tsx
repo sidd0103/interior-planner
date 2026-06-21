@@ -78,7 +78,8 @@ export function RoomEditor({ projectId, roomId }: Props) {
           </RoomScene>
         </SceneCanvas>
         <div className="muted" style={{ position: "absolute", bottom: 12, left: 12, fontSize: 12 }}>
-          {items.length} item(s) · drag the gizmo to move · click empty space to deselect
+          {items.length} item(s) · WASD to walk · drag to look · scroll to move · drag the gizmo to
+          move furniture
         </div>
         <Loader />
       </div>
