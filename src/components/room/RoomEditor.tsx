@@ -12,6 +12,7 @@ import { RoomToolsPanel } from "./RoomToolsPanel";
 import { useSceneItems } from "@/lib/scene/useSceneItems";
 import { useEditor } from "@/lib/scene/editorStore";
 import { useAssetUrl } from "@/lib/storage/useAssetUrl";
+import { ensureDemoProject } from "@/lib/storage/seed";
 import * as repo from "@/lib/storage/repo";
 import type { TransformPatch } from "@/lib/scene/types";
 
@@ -30,10 +31,17 @@ export function RoomEditor({ projectId, roomId }: Props) {
   const initialView = useMemo(() => {
     const t = room?.metricTransform?.translation;
     if (!t) return undefined;
-    return { position: t, target: [t[0], t[1], t[2] + 3] as [number, number, number] };
+    // After the Y-down→Y-up flip the room interior is along -Z; face it.
+    return { position: t, target: [t[0], t[1], t[2] - 3] as [number, number, number] };
   }, [room?.metricTransform]);
 
   useEffect(() => () => select(null), [select]);
+
+  // Apply any pending demo migrations (e.g. orientation fix) even when the room
+  // is opened directly, then refresh so the corrected transform takes effect.
+  useEffect(() => {
+    ensureDemoProject().then(() => mutateRoom());
+  }, [mutateRoom]);
 
   async function onTransform(id: string, patch: TransformPatch) {
     await repo.updatePlaced(id, patch);

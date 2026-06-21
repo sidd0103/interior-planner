@@ -16,7 +16,7 @@ import { putAsset } from "./blobStore";
 import { ROT_X180 } from "@/lib/geometry/vec3";
 import type { MetricTransform } from "./types";
 
-const SEED_FLAG = "ip-demo-seeded-v2";
+const SEED_FLAG = "ip-demo-seeded-v3";
 const DEMO_PROJECT_ID = "demo-apartment";
 const DEMO_ROOM_ID = "demo-living-room";
 const DEMO_SPLAT_URL = "/demo/living-room.spz";
