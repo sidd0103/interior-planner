@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import * as repo from "@/lib/storage/repo";
+import { ensureDemoProject } from "@/lib/storage/seed";
 
 export default function Dashboard() {
   const { data: projects, mutate, isLoading } = useSWR("projects", () => repo.listProjects());
   const [name, setName] = useState("");
+
+  // Seed the bundled demo project on first run.
+  useEffect(() => {
+    ensureDemoProject().then(() => mutate());
+  }, [mutate]);
 
   async function create() {
     const trimmed = name.trim();
