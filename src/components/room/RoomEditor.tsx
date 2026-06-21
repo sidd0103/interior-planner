@@ -73,6 +73,10 @@ export function RoomEditor({ projectId, roomId }: Props) {
                 url={splatUrl}
                 format={room?.splatFormat}
                 transform={room?.metricTransform}
+                onAutoFit={async (t) => {
+                  await repo.updateRoom(roomId, { metricTransform: t });
+                  mutateRoom();
+                }}
               />
             )}
           </RoomScene>
