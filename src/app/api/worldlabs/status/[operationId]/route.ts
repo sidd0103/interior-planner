@@ -8,6 +8,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ operationId: s
     return NextResponse.json({
       status: op.error ? "error" : op.done ? "done" : "processing",
       splatReady: !!op.splatUrl,
+      metricScaleFactor: op.metricScaleFactor,
+      groundPlaneOffset: op.groundPlaneOffset,
       error: op.error,
     });
   } catch (e) {

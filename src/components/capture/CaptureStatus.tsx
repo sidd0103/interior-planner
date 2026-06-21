@@ -4,11 +4,15 @@ import { useEffect, useRef } from "react";
 import useSWR from "swr";
 import { useJob } from "@/lib/jobs/useJob";
 import * as repo from "@/lib/storage/repo";
+import { IDENTITY3 } from "@/lib/geometry/vec3";
 import type { Room } from "@/lib/storage/types";
 
 interface StatusResp {
   status: "processing" | "done" | "error";
   splatReady: boolean;
+  /** World Labs' raw-units → meters factor + ground offset (when done). */
+  metricScaleFactor?: number;
+  groundPlaneOffset?: number;
   error?: string;
 }
 
@@ -46,7 +50,21 @@ export function CaptureStatus({ room, onUpdate }: { room: Room; onUpdate: () => 
           if (!res.ok) throw new Error(await res.text());
           const blob = await res.blob();
           const splatAssetId = await repo.putAsset(blob);
-          await repo.updateRoom(room.id, { splatAssetId, splatFormat: "spz" });
+
+          // World Labs gives us the metric scale directly — seed an initial
+          // metric transform so the room is correctly scaled out of the box.
+          // (The Measure-screenshot reconciler can still refine it.)
+          const patch: Partial<Room> = { splatAssetId, splatFormat: "spz" };
+          if (!room.metricTransform && status.metricScaleFactor) {
+            patch.metricTransform = {
+              scale: status.metricScaleFactor,
+              rotation: IDENTITY3,
+              translation: [0, status.groundPlaneOffset ?? 0, 0],
+              rmsResidualMeters: 0,
+              solvedAt: Date.now(),
+            };
+          }
+          await repo.updateRoom(room.id, patch);
           if (room.captureJobId)
             await repo.updateJob(room.captureJobId, { status: "done", resultAssetId: splatAssetId });
           onUpdate();

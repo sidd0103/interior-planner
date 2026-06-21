@@ -30,6 +30,10 @@ export interface OperationResult {
   done: boolean;
   /** Download URL for the generated .spz splat, present when done. */
   splatUrl?: string;
+  /** World Labs' own raw-units → meters factor (from semantics_metadata). */
+  metricScaleFactor?: number;
+  /** Offset of the ground plane in the splat (from semantics_metadata). */
+  groundPlaneOffset?: number;
   error?: string;
 }
 
@@ -93,18 +97,24 @@ export async function generateWorld(
   });
   if (!res.ok) throw new Error(`worlds:generate failed (${res.status}): ${await res.text()}`);
 
-  const j = (await res.json()) as { name?: string; id?: string; operation?: { name?: string } };
-  const name = j.name ?? j.operation?.name ?? j.id;
-  if (!name) throw new Error("worlds:generate returned no operation id");
-  return bareId(name);
+  const j = (await res.json()) as { operation_id?: string; name?: string; id?: string };
+  const id = j.operation_id ?? j.name ?? j.id;
+  if (!id) throw new Error("worlds:generate returned no operation id");
+  return bareId(id);
+}
+
+interface WorldResponse {
+  assets?: {
+    splats?: {
+      spz_urls?: Record<string, string>;
+      semantics_metadata?: { metric_scale_factor?: number; ground_plane_offset?: number };
+    };
+  };
 }
 
 /** Extract the .spz splat URL from a completed operation's World response. */
-function extractSplatUrl(response: unknown): string | undefined {
-  const r = response as
-    | { assets?: { splats?: { spz_urls?: Record<string, string> } } }
-    | undefined;
-  const urls = r?.assets?.splats?.spz_urls;
+function extractSplatUrl(response: WorldResponse | undefined): string | undefined {
+  const urls = response?.assets?.splats?.spz_urls;
   if (!urls) return undefined;
   return urls["500k"] ?? urls["full_res"] ?? urls["100k"] ?? Object.values(urls)[0];
 }
@@ -117,14 +127,17 @@ export async function getOperation(operationId: string): Promise<OperationResult
   const j = (await res.json()) as {
     name?: string;
     done?: boolean;
-    error?: { message?: string } | string;
-    response?: unknown;
+    error?: { message?: string } | string | null;
+    response?: WorldResponse;
   };
   const error = typeof j.error === "string" ? j.error : j.error?.message;
+  const semantics = j.response?.assets?.splats?.semantics_metadata;
   return {
     id: operationId,
     done: !!j.done,
     splatUrl: j.done ? extractSplatUrl(j.response) : undefined,
+    metricScaleFactor: semantics?.metric_scale_factor,
+    groundPlaneOffset: semantics?.ground_plane_offset,
     error,
   };
 }
