@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { RoomCaptureWizard } from "@/components/capture/RoomCaptureWizard";
-import { MeasureReconciler } from "@/components/measure/MeasureReconciler";
+import { RoomCalibrator } from "@/components/measure/RoomCalibrator";
 import * as repo from "@/lib/storage/repo";
 import type { Room } from "@/lib/storage/types";
 
@@ -15,7 +15,7 @@ interface Props {
 
 /** Left panel: room-level tools — capture and dimension reconciliation. */
 export function RoomToolsPanel({ projectId, room, onUpdate }: Props) {
-  const [measuring, setMeasuring] = useState(false);
+  const [calibrating, setCalibrating] = useState(false);
   return (
     <aside
       style={{
@@ -61,17 +61,17 @@ export function RoomToolsPanel({ projectId, room, onUpdate }: Props) {
           >
             ↕ Flip upright
           </button>
-          <button className="primary" onClick={() => setMeasuring(true)}>
-            {room.metricTransform ? "Re-recover dimensions" : "Recover dimensions"}
+          <button className="primary" onClick={() => setCalibrating(true)}>
+            {room.dimensions ? "Re-calibrate room" : "Calibrate room"}
           </button>
         </>
       )}
 
-      {measuring && (
-        <MeasureReconciler
+      {calibrating && (
+        <RoomCalibrator
           room={room}
-          onClose={() => setMeasuring(false)}
-          onSolved={onUpdate}
+          onClose={() => setCalibrating(false)}
+          onCalibrated={onUpdate}
         />
       )}
     </aside>

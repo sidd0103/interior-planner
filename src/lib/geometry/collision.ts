@@ -15,6 +15,12 @@ export interface BoxItem {
   scale: number;
 }
 
+/** A world-space axis-aligned box (the room bounds). */
+export interface WorldAABB {
+  min: Vec3;
+  max: Vec3;
+}
+
 interface AABB {
   cx: number;
   cy: number;
@@ -55,4 +61,30 @@ export function findOverlaps(items: BoxItem[]): Set<string> {
     }
   }
   return overlapping;
+}
+
+/** True if the item's footprint stays within the room bounds (X/Z), with tolerance. */
+export function withinBoundsXZ(item: BoxItem, box: WorldAABB, tol = 0.02): boolean {
+  const hw = (item.realDims.width * item.scale) / 2;
+  const hd = (item.realDims.depth * item.scale) / 2;
+  const [x, , z] = item.position;
+  return (
+    x - hw >= box.min[0] - tol &&
+    x + hw <= box.max[0] + tol &&
+    z - hd >= box.min[2] - tol &&
+    z + hd <= box.max[2] + tol
+  );
+}
+
+/** Soft-snap an item's footprint to a nearby wall (within `threshold`). Returns the adjusted position. */
+export function snapToWalls(item: BoxItem, box: WorldAABB, threshold = 0.12): Vec3 {
+  let [x, , z] = item.position;
+  const y = item.position[1];
+  const hw = (item.realDims.width * item.scale) / 2;
+  const hd = (item.realDims.depth * item.scale) / 2;
+  if (Math.abs(x - hw - box.min[0]) < threshold) x = box.min[0] + hw;
+  else if (Math.abs(x + hw - box.max[0]) < threshold) x = box.max[0] - hw;
+  if (Math.abs(z - hd - box.min[2]) < threshold) z = box.min[2] + hd;
+  else if (Math.abs(z + hd - box.max[2]) < threshold) z = box.max[2] - hd;
+  return [x, y, z];
 }

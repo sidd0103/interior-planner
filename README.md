@@ -1,20 +1,20 @@
 # Interior Planner
 
 A browser-based tool for decorating a new apartment. Film each room, turn the
-footage into a navigable 3D scene, recover the room's true dimensions from
-iPhone Measure screenshots, generate 3D furniture from photos, and arrange it
-all in a powerful in-browser 3D editor.
+footage into a navigable 3D scene, calibrate the room's true dimensions by
+drawing measurements directly in 3D, generate 3D furniture from photos, and
+arrange it all in a powerful in-browser 3D editor.
 
 ## Pipeline
 
 1. **Capture** — upload a room walkthrough video (or photos) → [World Labs
    Marble](https://www.worldlabs.ai) reconstructs it as a navigable Gaussian
-   splat. (Or import an existing `.ply`/`.ksplat`/`.splat` directly — no key
-   needed.)
-2. **Reconcile dimensions** — upload iPhone **Measure** app screenshots; Claude
-   vision reads the measurements, you drag endpoint markers onto the matching
-   corners in 3D, and a least-squares **similarity solve** recovers the metric
-   scale, orientation, and origin so the splat is real-world accurate.
+   splat. (Or import an existing `.ply`/`.ksplat`/`.splat`/`.spz` directly — no
+   key needed.) Splats arrive oriented + roughly scaled automatically.
+2. **Calibrate room** — draw a virtual **measure tape** (click two points on the
+   splat, type the real length) to recover the metric scale via a least-squares
+   fit, then draw a **room-bounds box** around the room. The box extrapolates the
+   measured scale to the room's full metric dimensions.
 3. **Generate furniture** — upload a furniture photo + real dimensions →
    [Meshy](https://www.meshy.ai) turns it into a GLB asset (shown immediately as
    a correctly-sized box, upgraded to a mesh when ready).
@@ -31,8 +31,7 @@ all in a powerful in-browser 3D editor.
 - **Local-first persistence** — Dexie (IndexedDB) for metadata, OPFS (with an
   IndexedDB fallback) for large binaries, behind a swappable repository facade
   (`src/lib/storage/repo.ts`).
-- **Anthropic Claude** (`claude-opus-4-8`) for vision; **SWR** `refreshInterval`
-  polling for the long-running generation jobs.
+- **SWR** `refreshInterval` polling for the long-running generation jobs.
 
 ## Setup
 
@@ -48,7 +47,6 @@ npm run dev                  # http://localhost:3000
 |-----|---------|
 | `WORLD_LABS_API_KEY` | room capture (`/api/worldlabs/*`) |
 | `MESHY_API_KEY` | furniture generation (`/api/meshy/*`) |
-| `ANTHROPIC_API_KEY` | Measure-screenshot reading (`/api/vision/measure`) |
 
 The app runs without keys — capture supports a direct splat-import path, and
 furniture exists as boxes until a mesh is generated.
@@ -66,14 +64,14 @@ src/
   components/
     scene/                 R3F canvas, splat + furniture, transform gizmo
     capture/               room capture wizard + job watcher
-    measure/               dimension-reconciliation modal
+    measure/               draw-in-3D room calibrator (measure tape + bounds box)
     furniture/             photo -> 3D generator + library panel
     apartment/             multi-room assembly view
     room/                  room editor shell
   lib/
-    clients/               server-only adapters (worldLabs, meshy, vision)
+    clients/               server-only adapters (worldLabs, meshy)
     storage/               Dexie + OPFS + repository facade
-    geometry/              similarity solve, units, collision
+    geometry/              scale solve, calibration, units, collision, splat-fit
     scene/ jobs/ util/     editor state, SWR polling, helpers
 ```
 

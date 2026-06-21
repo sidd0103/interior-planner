@@ -4,8 +4,9 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { Grid, TransformControls } from "@react-three/drei";
 import * as THREE from "three";
 import { FurnitureItem } from "./FurnitureItem";
+import { BoundsBox, type WorldBox } from "@/components/measure/BoundsBox";
 import { useEditor } from "@/lib/scene/editorStore";
-import { findOverlaps } from "@/lib/geometry/collision";
+import { findOverlaps, withinBoundsXZ, snapToWalls } from "@/lib/geometry/collision";
 import type { SceneItem, TransformPatch } from "@/lib/scene/types";
 
 interface Props {
@@ -15,6 +16,8 @@ interface Props {
   children?: React.ReactNode;
   /** Show the helper grid (room editor); hide it in apartment view. */
   showGrid?: boolean;
+  /** Calibrated room bounds (world space) — drawn + used for snapping/warnings. */
+  worldBounds?: WorldBox;
 }
 
 /**
@@ -22,7 +25,7 @@ interface Props {
  * single transform gizmo bound to the current selection. Lives inside a
  * <Canvas> (see SceneCanvas).
  */
-export function RoomScene({ items, onTransform, children, showGrid = true }: Props) {
+export function RoomScene({ items, onTransform, children, showGrid = true, worldBounds }: Props) {
   const { selectedId, mode, select, setDragging } = useEditor();
 
   // Registry of each item's Object3D so we can attach the gizmo to the selection.
@@ -41,20 +44,36 @@ export function RoomScene({ items, onTransform, children, showGrid = true }: Pro
 
   const overlaps = useMemo(() => findOverlaps(items), [items]);
 
+  // Flag furniture that pokes outside the room bounds (drawn red, like overlaps).
+  const warn = useMemo(() => {
+    const set = new Set(overlaps);
+    if (worldBounds) {
+      for (const it of items) {
+        if (!withinBoundsXZ(it, worldBounds)) set.add(it.id);
+      }
+    }
+    return set;
+  }, [overlaps, items, worldBounds]);
+
   const commit = useCallback(() => {
     if (!selectedId || !selectedObj) return;
     // Snap furniture to the floor: translation is locked to the X/Z plane.
     selectedObj.position.y = 0;
-    const p = selectedObj.position;
     const r = selectedObj.rotation;
-    // We persist a single uniform scale; read it from x.
     const s = selectedObj.scale.x;
-    onTransform(selectedId, {
-      position: [p.x, 0, p.z],
-      rotation: [r.x, r.y, r.z],
-      scale: s,
-    });
-  }, [selectedId, selectedObj, onTransform]);
+
+    let pos: [number, number, number] = [selectedObj.position.x, 0, selectedObj.position.z];
+    // Soft-snap to nearby walls.
+    if (worldBounds) {
+      const item = items.find((it) => it.id === selectedId);
+      if (item) {
+        pos = snapToWalls({ id: item.id, position: pos, realDims: item.realDims, scale: s }, worldBounds);
+        selectedObj.position.set(pos[0], 0, pos[2]);
+      }
+    }
+
+    onTransform(selectedId, { position: pos, rotation: [r.x, r.y, r.z], scale: s });
+  }, [selectedId, selectedObj, onTransform, worldBounds, items]);
 
   return (
     <>
@@ -83,13 +102,15 @@ export function RoomScene({ items, onTransform, children, showGrid = true }: Pro
 
       <Suspense fallback={null}>{children}</Suspense>
 
+      {worldBounds && <BoundsBox box={worldBounds} />}
+
       <Suspense fallback={null}>
         {items.map((item) => (
           <FurnitureItem
             key={item.id}
             item={item}
             selected={item.id === selectedId}
-            overlapping={overlaps.has(item.id)}
+            overlapping={warn.has(item.id)}
             onSelect={select}
             registerObject={registerObject}
           />

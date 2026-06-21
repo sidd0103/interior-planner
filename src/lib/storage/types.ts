@@ -40,6 +40,16 @@ export interface RoomDimensions {
   height: number;
 }
 
+/**
+ * Axis-aligned room bounds drawn by the user, in **oriented** space
+ * (oriented = R·raw — upright and axis-aligned to the room, but in native
+ * units). Multiply extents by the calibrated scale to get meters.
+ */
+export interface RoomBounds {
+  min: Vec3;
+  max: Vec3;
+}
+
 /** Pose of a room within the apartment-level assembly. */
 export interface LayoutPose {
   position: Vec3;
@@ -68,9 +78,11 @@ export interface Room {
   splatUpFlip?: boolean;
   /** The in-flight or completed World Labs capture job. */
   captureJobId?: Id;
-  /** Similarity transform that makes the splat metric (set after reconciliation). */
+  /** Similarity transform that makes the splat metric (set after calibration). */
   metricTransform?: MetricTransform;
-  /** Recovered W×D×H once the room is scaled. */
+  /** User-drawn room bounds box (oriented space); extrapolated to metric by scale. */
+  bounds?: RoomBounds;
+  /** Recovered W×D×H once the room is scaled (= bounds extent · scale). */
   dimensions?: RoomDimensions;
   /** Placement within the apartment assembly view. */
   layoutPose?: LayoutPose;
@@ -94,32 +106,23 @@ export interface Job {
   updatedAt: number;
 }
 
+export type MeasureUnit = "m" | "cm" | "mm" | "ft" | "in";
+
 /**
- * One measurement extracted from an iPhone Measure screenshot, plus the
- * user's association of that measurement with a span in the 3D splat.
+ * A measure-tape segment the user drew directly in the 3D scene: two endpoints
+ * (in oriented space — see RoomBounds) plus the real length they entered. The
+ * oriented distance vs. the entered meters calibrates the scale.
  */
 export interface Measurement {
   id: Id;
   roomId: Id;
-  /** Blob key for the source screenshot. */
-  screenshotAssetId: Id;
-  /** Numeric magnitude as read by the vision model, e.g. 2.4. */
+  /** Segment endpoints in oriented space (R·raw, native units). */
+  endpoints: [Vec3, Vec3];
+  /** Numeric magnitude the user entered, e.g. 2.4. */
   value: number;
-  /** Unit as read, normalized. */
-  unit: "m" | "cm" | "mm" | "ft" | "in";
-  /** The value converted to meters (canonical form used by the solver). */
+  unit: MeasureUnit;
+  /** `value` converted to meters (canonical form used by the calibrator). */
   meters: number;
-  /** Free-text description of what the line measures, from the vision model. */
-  label?: string;
-  /** Vision model's confidence 0..1, if provided. */
-  confidence?: number;
-  /**
-   * The two endpoints the user clicked in raw splat space that correspond to
-   * this measured span. Required before the measurement contributes to the solve.
-   */
-  endpointsSplat?: [Vec3, Vec3];
-  /** Marks a span the user tagged as lying on the floor (used to recover "up"). */
-  isFloorSpan?: boolean;
   createdAt: number;
   updatedAt: number;
 }

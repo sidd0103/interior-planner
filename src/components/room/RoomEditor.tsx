@@ -13,6 +13,7 @@ import { useSceneItems } from "@/lib/scene/useSceneItems";
 import { useEditor } from "@/lib/scene/editorStore";
 import { useAssetUrl } from "@/lib/storage/useAssetUrl";
 import { ensureDemoProject } from "@/lib/storage/seed";
+import { orientedToWorld } from "@/lib/geometry/calibrate";
 import * as repo from "@/lib/storage/repo";
 import type { TransformPatch } from "@/lib/scene/types";
 
@@ -38,6 +39,14 @@ export function RoomEditor({ projectId, roomId }: Props) {
       target: [t[0], eyeY, t[2] - 3] as [number, number, number],
     };
   }, [room?.metricTransform]);
+
+  // Calibrated room bounds in world space (for drawing + furniture snapping).
+  const worldBounds = useMemo(() => {
+    const t = room?.metricTransform;
+    const b = room?.bounds;
+    if (!t || !b) return undefined;
+    return { min: orientedToWorld(b.min, t), max: orientedToWorld(b.max, t) };
+  }, [room?.metricTransform, room?.bounds]);
 
   useEffect(() => () => select(null), [select]);
 
@@ -71,7 +80,7 @@ export function RoomEditor({ projectId, roomId }: Props) {
       <div style={{ flex: 1, position: "relative" }}>
         <Toolbar onDelete={onDelete} />
         <SceneCanvas initialView={initialView}>
-          <RoomScene items={items} onTransform={onTransform}>
+          <RoomScene items={items} onTransform={onTransform} worldBounds={worldBounds}>
             {splatUrl && (
               <SplatRoom
                 url={splatUrl}

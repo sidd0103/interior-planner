@@ -118,8 +118,6 @@ export async function updateMeasurement(id: Id, patch: Partial<Measurement>): Pr
 }
 
 export async function deleteMeasurement(id: Id): Promise<void> {
-  const m = await db().measurements.get(id);
-  if (m?.screenshotAssetId) await deleteAsset(m.screenshotAssetId);
   await db().measurements.delete(id);
 }
 
