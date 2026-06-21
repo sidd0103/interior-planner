@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import useSWR from "swr";
 import { Loader } from "@react-three/drei";
 import { SceneCanvas } from "@/components/scene/SceneCanvas";
@@ -25,6 +25,13 @@ export function RoomEditor({ projectId, roomId }: Props) {
   const { selectedId, select } = useEditor();
   const { data: room, mutate: mutateRoom } = useSWR(["room", roomId], () => repo.getRoom(roomId));
   const splatUrl = useAssetUrl(room?.splatAssetId);
+
+  // Spawn at the room's capture point (inside), looking into the room.
+  const initialView = useMemo(() => {
+    const t = room?.metricTransform?.translation;
+    if (!t) return undefined;
+    return { position: t, target: [t[0], t[1], t[2] + 3] as [number, number, number] };
+  }, [room?.metricTransform]);
 
   useEffect(() => () => select(null), [select]);
 
@@ -51,7 +58,7 @@ export function RoomEditor({ projectId, roomId }: Props) {
 
       <div style={{ flex: 1, position: "relative" }}>
         <Toolbar onDelete={onDelete} />
-        <SceneCanvas>
+        <SceneCanvas initialView={initialView}>
           <RoomScene items={items} onTransform={onTransform}>
             {splatUrl && (
               <SplatRoom

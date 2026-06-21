@@ -27,3 +27,11 @@ export function applyMat3(m: Mat3, v: Vec3): Vec3 {
 }
 
 export const IDENTITY3: Mat3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+
+/**
+ * 180° rotation about X. World Labs Marble splats come out Y-down / Z-forward
+ * (the COLMAP/SfM convention); this maps them into three.js's Y-up frame.
+ * Combined with translation [0, ground_plane_offset, 0] it puts the floor at
+ * y=0 and the capture point at eye height.
+ */
+export const ROT_X180: Mat3 = [1, 0, 0, 0, -1, 0, 0, 0, -1];

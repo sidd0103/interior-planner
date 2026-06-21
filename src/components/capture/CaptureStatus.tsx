@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import useSWR from "swr";
 import { useJob } from "@/lib/jobs/useJob";
 import * as repo from "@/lib/storage/repo";
-import { IDENTITY3 } from "@/lib/geometry/vec3";
+import { ROT_X180 } from "@/lib/geometry/vec3";
 import type { Room } from "@/lib/storage/types";
 
 interface StatusResp {
@@ -58,7 +58,7 @@ export function CaptureStatus({ room, onUpdate }: { room: Room; onUpdate: () => 
           if (!room.metricTransform && status.metricScaleFactor) {
             patch.metricTransform = {
               scale: status.metricScaleFactor,
-              rotation: IDENTITY3,
+              rotation: ROT_X180,
               translation: [0, status.groundPlaneOffset ?? 0, 0],
               rmsResidualMeters: 0,
               solvedAt: Date.now(),
