@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { RoomCaptureWizard } from "@/components/capture/RoomCaptureWizard";
 import { MeasureReconciler } from "@/components/measure/MeasureReconciler";
+import * as repo from "@/lib/storage/repo";
 import type { Room } from "@/lib/storage/types";
 
 interface Props {
@@ -43,9 +44,27 @@ export function RoomToolsPanel({ projectId, room, onUpdate }: Props) {
       <RoomCaptureWizard room={room} onUpdate={onUpdate} />
 
       {room.splatAssetId && (
-        <button className="primary" onClick={() => setMeasuring(true)}>
-          {room.metricTransform ? "Re-recover dimensions" : "Recover dimensions"}
-        </button>
+        <>
+          <button
+            onClick={async () => {
+              // Flip the currently-rendered orientation. Derive the current
+              // state from the saved rotation's Y component (−1 ⇒ already
+              // flipped) so one click always corrects an upside-down room.
+              const flipped = (room.metricTransform?.rotation?.[4] ?? 1) < 0;
+              await repo.updateRoom(room.id, {
+                splatUpFlip: !flipped,
+                metricTransform: undefined,
+              });
+              onUpdate();
+            }}
+            title="If the room is upside down, flip it upright"
+          >
+            ↕ Flip upright
+          </button>
+          <button className="primary" onClick={() => setMeasuring(true)}>
+            {room.metricTransform ? "Re-recover dimensions" : "Recover dimensions"}
+          </button>
+        </>
       )}
 
       {measuring && (

@@ -64,6 +64,8 @@ export interface Room {
   splatAssetId?: Id;
   /** Format of the stored splat blob (it has no file extension in the blob store). */
   splatFormat?: "spz" | "ply" | "splat" | "ksplat";
+  /** Vertical convention for auto-fit of imported splats (flip 180° about X). */
+  splatUpFlip?: boolean;
   /** The in-flight or completed World Labs capture job. */
   captureJobId?: Id;
   /** Similarity transform that makes the splat metric (set after reconciliation). */

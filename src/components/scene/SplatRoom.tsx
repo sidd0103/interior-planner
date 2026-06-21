@@ -16,6 +16,8 @@ interface Props {
   transform?: MetricTransform;
   /** Render at reduced fidelity (apartment overview). */
   lowDetail?: boolean;
+  /** Vertical convention for auto-fit (flip 180° about X). */
+  upFlip?: boolean;
   /**
    * Called once with a transform auto-derived from the splat geometry when no
    * `transform` is provided (e.g. an imported splat with no World Labs metadata).
@@ -50,13 +52,12 @@ function applyTransform(mesh: THREE.Object3D, transform?: MetricTransform) {
  * canvas's SplatStage, which draws it in a dedicated pass alongside regular
  * meshes. Must be rendered inside a <SplatStage> (see SceneCanvas).
  */
-export function SplatRoom({ url, format, transform, lowDetail, onAutoFit }: Props) {
+export function SplatRoom({ url, format, transform, lowDetail, upFlip, onAutoFit }: Props) {
   const id = useId();
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
   const registry = useSplatRegistry();
   const meshRef = useRef<THREE.Object3D | null>(null);
-  const autoFitRef = useRef(false);
 
   useEffect(() => {
     if (!registry) return;
@@ -117,9 +118,8 @@ export function SplatRoom({ url, format, transform, lowDetail, onAutoFit }: Prop
         registry.set(id, { viewer: v, mesh });
 
         // No transform yet (imported splat): derive one from the geometry so it
-        // comes in upright, on the floor, with the capture point at eye height.
-        if (!transform && onAutoFit && !autoFitRef.current) {
-          autoFitRef.current = true;
+        // comes in upright and on the floor.
+        if (!transform && onAutoFit) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const sm = v.getSplatMesh?.() as any;
           const count: number = sm?.getSplatCount?.() ?? 0;
@@ -131,7 +131,7 @@ export function SplatRoom({ url, format, transform, lowDetail, onAutoFit }: Prop
               sm.getSplatCenter(i, tmp, false); // raw splat space
               pts.push([tmp.x, tmp.y, tmp.z]);
             }
-            onAutoFit(fitTransformFromPoints(pts, Date.now()));
+            onAutoFit(fitTransformFromPoints(pts, !!upFlip, Date.now()));
           }
         }
       } catch (err) {
@@ -149,7 +149,9 @@ export function SplatRoom({ url, format, transform, lowDetail, onAutoFit }: Prop
         /* best-effort */
       }
     };
-  }, [url, format, lowDetail, gl, camera, id, registry]);
+    // upFlip re-runs the fit; transform is intentionally not a dep (onAutoFit sets it).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, format, lowDetail, upFlip, gl, camera, id, registry]);
 
   // Re-apply the metric transform when it changes (e.g. after reconciliation).
   useEffect(() => {

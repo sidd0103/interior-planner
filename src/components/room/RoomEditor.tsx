@@ -31,8 +31,12 @@ export function RoomEditor({ projectId, roomId }: Props) {
   const initialView = useMemo(() => {
     const t = room?.metricTransform?.translation;
     if (!t) return undefined;
-    // After the Y-down→Y-up flip the room interior is along -Z; face it.
-    return { position: t, target: [t[0], t[1], t[2] - 3] as [number, number, number] };
+    // Stand at eye height (the capture point can sit near the floor for imports).
+    const eyeY = Math.max(t[1], 1.4);
+    return {
+      position: [t[0], eyeY, t[2]] as [number, number, number],
+      target: [t[0], eyeY, t[2] - 3] as [number, number, number],
+    };
   }, [room?.metricTransform]);
 
   useEffect(() => () => select(null), [select]);
@@ -73,6 +77,7 @@ export function RoomEditor({ projectId, roomId }: Props) {
                 url={splatUrl}
                 format={room?.splatFormat}
                 transform={room?.metricTransform}
+                upFlip={room?.splatUpFlip}
                 onAutoFit={async (t) => {
                   await repo.updateRoom(roomId, { metricTransform: t });
                   mutateRoom();
