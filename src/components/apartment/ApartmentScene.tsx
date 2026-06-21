@@ -6,6 +6,7 @@ import { OrbitControls, Grid, TransformControls, Loader } from "@react-three/dre
 import useSWR from "swr";
 import * as THREE from "three";
 import { ApartmentRoomGroup } from "./ApartmentRoomGroup";
+import { SplatStage } from "@/components/scene/SplatStage";
 import * as repo from "@/lib/storage/repo";
 import type { Vec3 } from "@/lib/storage/types";
 
@@ -77,6 +78,7 @@ export function ApartmentScene({ projectId }: { projectId: string }) {
         style={{ background: "#0b0d11" }}
       >
         <OrbitControls makeDefault enableDamping dampingFactor={0.1} maxDistance={120} />
+        <SplatStage>
         <ambientLight intensity={0.65} />
         <hemisphereLight args={["#cfd8ff", "#202028", 0.5]} />
         <directionalLight position={[10, 16, 8]} intensity={1} />
@@ -113,6 +115,7 @@ export function ApartmentScene({ projectId }: { projectId: string }) {
             onMouseUp={commit}
           />
         )}
+        </SplatStage>
       </Canvas>
 
       <Loader />

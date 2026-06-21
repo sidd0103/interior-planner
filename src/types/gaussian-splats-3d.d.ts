@@ -8,6 +8,7 @@ declare module "@mkkellogg/gaussian-splats-3d" {
   export interface DropInViewerOptions {
     gpuAcceleratedSort?: boolean;
     sharedMemoryForWorkers?: boolean;
+    sceneRevealMode?: SceneRevealMode;
     renderer?: WebGLRenderer;
     [key: string]: unknown;
   }
@@ -17,6 +18,12 @@ declare module "@mkkellogg/gaussian-splats-3d" {
     KSplat = 1,
     Ply = 2,
     Spz = 3,
+  }
+
+  export enum SceneRevealMode {
+    Default = 0,
+    Gradual = 1,
+    Instant = 2,
   }
 
   export interface AddSplatSceneOptions {
@@ -35,5 +42,13 @@ declare module "@mkkellogg/gaussian-splats-3d" {
 
   export class Viewer {
     constructor(options?: Record<string, unknown>);
+    splatMesh: Object3D;
+    camera: unknown;
+    renderer: unknown;
+    addSplatScene(path: string, options?: AddSplatSceneOptions): Promise<void>;
+    getSplatMesh(): Object3D;
+    update(renderer?: unknown, camera?: unknown): void;
+    render(): void;
+    dispose(): Promise<void> | void;
   }
 }

@@ -3,6 +3,7 @@
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { useEditor } from "@/lib/scene/editorStore";
+import { SplatStage } from "./SplatStage";
 
 interface Props {
   children: React.ReactNode;
@@ -20,12 +21,13 @@ export function SceneCanvas({ children }: Props) {
     <Canvas
       shadows
       dpr={[1, 2]}
+      gl={{ antialias: false, alpha: false, premultipliedAlpha: false }}
       camera={{ position: [4, 3, 6], fov: 50, near: 0.01, far: 1000 }}
       onPointerMissed={() => select(null)}
       style={{ width: "100%", height: "100%", background: "#0b0d11" }}
     >
       <OrbitControls makeDefault enableDamping dampingFactor={0.1} maxDistance={60} />
-      {children}
+      <SplatStage>{children}</SplatStage>
     </Canvas>
   );
 }

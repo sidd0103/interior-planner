@@ -5,6 +5,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import useSWR from "swr";
 import { MeasureScene, type ContextSpan } from "./MeasureScene";
+import { SplatStage } from "@/components/scene/SplatStage";
 import * as repo from "@/lib/storage/repo";
 import { useAssetUrl } from "@/lib/storage/useAssetUrl";
 import { fileToDataUri } from "@/lib/util/file";
@@ -276,15 +277,17 @@ export function MeasureReconciler({ room, onClose, onSolved }: Props) {
           style={{ background: "#0b0d11" }}
         >
           <OrbitControls makeDefault enableDamping dampingFactor={0.1} />
-          {splatUrl && (
-            <MeasureScene
-              splatUrl={splatUrl}
-              splatFormat={room.splatFormat}
-              markers={markers}
-              onMarkersChange={onMarkersChange}
-              contextSpans={contextSpans}
-            />
-          )}
+          <SplatStage>
+            {splatUrl && (
+              <MeasureScene
+                splatUrl={splatUrl}
+                splatFormat={room.splatFormat}
+                markers={markers}
+                onMarkersChange={onMarkersChange}
+                contextSpans={contextSpans}
+              />
+            )}
+          </SplatStage>
         </Canvas>
         {!splatUrl && (
           <div

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef } from "react";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { useSplatRegistry } from "./SplatStage";
 import type { MetricTransform } from "@/lib/storage/types";
 
 interface Props {
@@ -16,36 +17,66 @@ interface Props {
   lowDetail?: boolean;
 }
 
+/** Apply the metric similarity transform (world = scale·R·p + t) to the splat mesh. */
+function applyTransform(mesh: THREE.Object3D, transform?: MetricTransform) {
+  if (transform) {
+    const m = transform.rotation;
+    const basis = new THREE.Matrix4().set(
+      m[0], m[1], m[2], 0,
+      m[3], m[4], m[5], 0,
+      m[6], m[7], m[8], 0,
+      0, 0, 0, 1,
+    );
+    mesh.quaternion.setFromRotationMatrix(basis);
+    mesh.scale.setScalar(transform.scale);
+    mesh.position.set(...transform.translation);
+  } else {
+    mesh.quaternion.identity();
+    mesh.scale.setScalar(1);
+    mesh.position.set(0, 0, 0);
+  }
+  mesh.updateMatrix();
+  mesh.updateMatrixWorld(true);
+}
+
 /**
- * Renders a World Labs / photogrammetry Gaussian splat inside the R3F scene
- * using @mkkellogg/gaussian-splats-3d's DropInViewer (a THREE.Group subclass
- * that self-updates each frame). The splat and regular GLB furniture meshes
- * coexist in one scene; keep furniture materials opaque (the splat renderer
- * does not composite transparent meshes correctly).
+ * Loads a World Labs / photogrammetry Gaussian splat and registers it with the
+ * canvas's SplatStage, which draws it in a dedicated pass alongside regular
+ * meshes. Must be rendered inside a <SplatStage> (see SceneCanvas).
  */
 export function SplatRoom({ url, format, transform, lowDetail }: Props) {
+  const id = useId();
   const gl = useThree((s) => s.gl);
-  const groupRef = useRef<THREE.Group>(null);
-  const [viewer, setViewer] = useState<THREE.Object3D | null>(null);
+  const camera = useThree((s) => s.camera);
+  const registry = useSplatRegistry();
+  const meshRef = useRef<THREE.Object3D | null>(null);
 
   useEffect(() => {
+    if (!registry) return;
     let disposed = false;
     let instance: { dispose?: () => void } | null = null;
 
-    // Dynamically import the splat library (it touches browser globals) so it
-    // never runs during SSR.
     (async () => {
+      // Dynamically import (touches browser globals — keep off the SSR path).
       const GS = await import("@mkkellogg/gaussian-splats-3d");
       if (disposed) return;
-      const v = new GS.DropInViewer({
-        gpuAcceleratedSort: true,
-        sharedMemoryForWorkers: false, // avoids cross-origin-isolation requirement
+
+      // Use the raw Viewer with R3F's renderer + camera supplied up front (an
+      // "external renderer"). DropInViewer forces renderer=undefined, which
+      // starves the initial GPU sort so splats never become ready; supplying
+      // the renderer at construction lets addSplatScene run that first sort.
+      const v = new GS.Viewer({
         renderer: gl,
+        camera,
+        useBuiltInControls: false,
+        selfDrivenMode: false,
+        gpuAcceleratedSort: false,
+        sharedMemoryForWorkers: false,
+        sceneRevealMode: GS.SceneRevealMode.Instant,
       });
       instance = v as unknown as { dispose?: () => void };
 
-      // Blob URLs carry no extension, so the loader can't infer the format —
-      // pass it explicitly. SPZ can't be progressively loaded, so disable that.
+      // Blob URLs carry no extension, so pass the format explicitly.
       const fmt =
         format === "spz"
           ? GS.SceneFormat.Spz
@@ -61,10 +92,22 @@ export function SplatRoom({ url, format, transform, lowDetail }: Props) {
         await v.addSplatScene(url, {
           showLoadingUI: false,
           splatAlphaRemovalThreshold: 5,
-          progressiveLoad: format === "spz" ? false : !lowDetail,
+          progressiveLoad: false,
           ...(fmt !== undefined ? { format: fmt } : {}),
         });
-        if (!disposed) setViewer(v as unknown as THREE.Object3D);
+        if (disposed) return;
+
+        const mesh: THREE.Object3D | undefined = v.getSplatMesh?.() ?? v.splatMesh;
+        if (!mesh) throw new Error("splat mesh unavailable after load");
+        // The splat mesh's bounding volume isn't valid for THREE's frustum
+        // culler, so it gets culled (0 draw calls). Disable culling on it.
+        mesh.frustumCulled = false;
+        mesh.traverse((c) => {
+          c.frustumCulled = false;
+        });
+        applyTransform(mesh, transform);
+        meshRef.current = mesh;
+        registry.set(id, { viewer: v, mesh });
       } catch (err) {
         console.error("Failed to load splat:", err);
       }
@@ -72,36 +115,20 @@ export function SplatRoom({ url, format, transform, lowDetail }: Props) {
 
     return () => {
       disposed = true;
+      registry.delete(id);
+      meshRef.current = null;
       try {
         instance?.dispose?.();
       } catch {
-        /* best-effort cleanup */
+        /* best-effort */
       }
     };
-  }, [url, lowDetail, gl]);
+  }, [url, format, lowDetail, gl, camera, id, registry]);
 
-  // Apply the metric similarity transform (scale · R · p + t) to the group.
+  // Re-apply the metric transform when it changes (e.g. after reconciliation).
   useEffect(() => {
-    const g = groupRef.current;
-    if (!g) return;
-    if (transform) {
-      const m = transform.rotation;
-      const basis = new THREE.Matrix4().set(
-        m[0], m[1], m[2], 0,
-        m[3], m[4], m[5], 0,
-        m[6], m[7], m[8], 0,
-        0, 0, 0, 1,
-      );
-      const quat = new THREE.Quaternion().setFromRotationMatrix(basis);
-      g.quaternion.copy(quat);
-      g.scale.setScalar(transform.scale);
-      g.position.set(...transform.translation);
-    } else {
-      g.quaternion.identity();
-      g.scale.setScalar(1);
-      g.position.set(0, 0, 0);
-    }
-  }, [transform, viewer]);
+    if (meshRef.current) applyTransform(meshRef.current, transform);
+  }, [transform]);
 
-  return <group ref={groupRef}>{viewer && <primitive object={viewer} />}</group>;
+  return null;
 }
