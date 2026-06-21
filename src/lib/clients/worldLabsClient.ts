@@ -16,6 +16,15 @@ import { requireEnv } from "./env";
 
 const BASE = "https://api.worldlabs.ai/marble/v1";
 
+/**
+ * Marble model to generate with.
+ *  - "marble-1.1"      : standard, fixed 1,500 credits/world.
+ *  - "marble-1.1-plus" : higher quality, auto-expanding worlds (better for
+ *                        larger indoor/outdoor spaces); variable cost — 1,500
+ *                        base + 300 per extra dynamic cube.
+ */
+const MARBLE_MODEL = "marble-1.1-plus";
+
 export type AssetKind = "image" | "video";
 
 export interface PreparedUpload {
@@ -91,7 +100,7 @@ export async function generateWorld(
     headers: authHeaders(),
     body: JSON.stringify({
       display_name: displayName,
-      model: "marble-1.1",
+      model: MARBLE_MODEL,
       world_prompt: worldPrompt,
     }),
   });
