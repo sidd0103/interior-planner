@@ -113,7 +113,7 @@ export function RoomEditor({ projectId, roomId }: Props) {
         ))}
 
       <div style={{ flex: 1, position: "relative" }}>
-        {!calibrating && <Toolbar onDelete={onDelete} />}
+        {!calibrating && selectedId && <Toolbar onDelete={onDelete} />}
         <SceneCanvas
           initialView={initialView}
           onPointerDown={(e) => (downPos.current = { x: e.clientX, y: e.clientY })}

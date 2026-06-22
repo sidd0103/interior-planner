@@ -105,8 +105,9 @@ export function FurnitureItem({ item, selected, overlapping, onSelect, registerO
       }}
     >
       <FurnitureVisual item={item} />
-      {(selected || overlapping) && (
-        // Wireframe bounds: blue when selected, red when intersecting another item.
+      {selected && (
+        // Wireframe bounds, shown only while selected. Red if it intersects
+        // another item, blue otherwise.
         <mesh position={[0, h / 2, 0]}>
           <boxGeometry args={[w * 1.02, h * 1.02, d * 1.02]} />
           <meshBasicMaterial

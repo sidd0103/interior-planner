@@ -30,9 +30,10 @@ interface Props {
 }
 
 /**
- * Right-hand panel for the room editor: when a placed item is selected, edit its
- * properties (dimensions, price, link) and remove it from the room. Otherwise,
- * generate furniture from a photo and place any saved asset into the room.
+ * Right-hand panel for the room editor. A focused asset — either the placed item
+ * selected in 3D, or a library item clicked here — shows an editable properties
+ * card (bounding-box dimensions, price, link). Otherwise: generate from a photo
+ * and place any saved asset.
  */
 export function FurniturePanel({
   projectId,
@@ -50,18 +51,34 @@ export function FurniturePanel({
     repo.listFurniture(projectId),
   );
 
-  const selected = selectedAssetId ? furniture?.find((f) => f.id === selectedAssetId) : undefined;
+  // A library item clicked here (for editing) when nothing is selected in 3D.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  // A 3D selection always wins; otherwise the clicked library item is focused.
+  const focusedId = selectedAssetId ?? editingId;
+  const focused = focusedId ? furniture?.find((f) => f.id === focusedId) : undefined;
+  const isPlacedFocus = !!selectedAssetId && focusedId === selectedAssetId;
 
-  async function applyToSelected(patch: Partial<FurnitureAsset>) {
-    if (!selectedAssetId) return;
-    await repo.updateFurniture(selectedAssetId, patch);
+  async function applyToFocused(patch: Partial<FurnitureAsset>) {
+    if (!focusedId) return;
+    await repo.updateFurniture(focusedId, patch);
     mutate();
     onAssetChange?.();
   }
 
   async function remove(id: string) {
     await repo.deleteFurniture(id);
+    if (editingId === id) setEditingId(null);
     mutate();
+  }
+
+  function editFromLibrary(id: string) {
+    onDeselect?.(); // move focus off any 3D selection
+    setEditingId(id);
+  }
+
+  function closeFocused() {
+    setEditingId(null);
+    onDeselect?.();
   }
 
   return (
@@ -86,13 +103,15 @@ export function FurniturePanel({
         </p>
       </div>
 
-      {selected && (
-        <SelectedFurniture
-          asset={selected}
+      {focused && (
+        <FurnitureProperties
+          asset={focused}
           unitSystem={unitSystem}
-          onApply={applyToSelected}
+          placed={isPlacedFocus}
+          onApply={applyToFocused}
+          onPlace={() => onPlace(focused.id)}
           onUnplace={() => onUnplace?.()}
-          onDeselect={() => onDeselect?.()}
+          onClose={closeFocused}
         />
       )}
 
@@ -100,7 +119,7 @@ export function FurniturePanel({
 
       <div className="col" style={{ marginTop: 8 }}>
         <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>
-          Library ({furniture?.length ?? 0})
+          Library ({furniture?.length ?? 0}) — click to edit
         </span>
         {furniture?.length === 0 && (
           <p className="muted" style={{ fontSize: 13 }}>
@@ -108,7 +127,16 @@ export function FurniturePanel({
           </p>
         )}
         {furniture?.map((f) => (
-          <div key={f.id} className="card col" style={{ gap: 8 }}>
+          <div
+            key={f.id}
+            className="card col"
+            onClick={() => editFromLibrary(f.id)}
+            style={{
+              gap: 8,
+              cursor: "pointer",
+              borderColor: focusedId === f.id ? "#3a6ea5" : undefined,
+            }}
+          >
             <div className="row" style={{ justifyContent: "space-between" }}>
               <span style={{ fontWeight: 600, fontSize: 14 }}>{f.name}</span>
               <GenerationStatus furniture={f} onUpdate={mutate} />
@@ -120,10 +148,24 @@ export function FurniturePanel({
               {f.price ? ` · $${f.price}` : ""}
             </span>
             <div className="row" style={{ justifyContent: "space-between" }}>
-              <button className="primary" onClick={() => onPlace(f.id)} style={{ padding: "6px 12px" }}>
+              <button
+                className="primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPlace(f.id);
+                }}
+                style={{ padding: "6px 12px" }}
+              >
                 Place in room
               </button>
-              <button className="danger" onClick={() => remove(f.id)} style={{ padding: "6px 10px" }}>
+              <button
+                className="danger"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  remove(f.id);
+                }}
+                style={{ padding: "6px 10px" }}
+              >
                 Delete
               </button>
             </div>
@@ -134,19 +176,32 @@ export function FurniturePanel({
   );
 }
 
-interface SelectedProps {
+interface PropsEditor {
   asset: FurnitureAsset;
   unitSystem: UnitSystem;
+  /** True when this asset's placed instance is the current 3D selection. */
+  placed: boolean;
   onApply: (patch: Partial<FurnitureAsset>) => void;
+  onPlace: () => void;
   onUnplace: () => void;
-  onDeselect: () => void;
+  onClose: () => void;
 }
 
 /**
- * Editable properties for the selected placed item. Every field is typed then
- * applied with ✓ (a null draft follows the saved value, so it stays in sync).
+ * Editable properties for the focused asset: bounding-box dimensions, price, and
+ * link. Every field is typed then applied with ✓ (a null draft follows the saved
+ * value, so it stays in sync). The bottom action removes it from the room (if
+ * placed) or places it.
  */
-function SelectedFurniture({ asset, unitSystem, onApply, onUnplace, onDeselect }: SelectedProps) {
+function FurnitureProperties({
+  asset,
+  unitSystem,
+  placed,
+  onApply,
+  onPlace,
+  onUnplace,
+  onClose,
+}: PropsEditor) {
   const unit = smallUnitLabel(unitSystem);
   const dW = metersToSmall(asset.realDims.width, unitSystem);
   const dD = metersToSmall(asset.realDims.depth, unitSystem);
@@ -187,13 +242,13 @@ function SelectedFurniture({ asset, unitSystem, onApply, onUnplace, onDeselect }
     <div className="card col" style={{ gap: 8, borderColor: "#3a6ea5" }}>
       <div className="row" style={{ justifyContent: "space-between" }}>
         <strong style={{ fontSize: 14 }}>{asset.name}</strong>
-        <button onClick={onDeselect} title="Deselect" style={{ padding: "4px 9px" }}>
+        <button onClick={onClose} title="Close" style={{ padding: "4px 9px" }}>
           ✕
         </button>
       </div>
 
       <label className="muted" style={{ fontSize: 12 }}>
-        Size — W×D×H ({unit})
+        Bounding box — W×D×H ({unit})
       </label>
       <div className="row" style={{ gap: 6, alignItems: "center" }}>
         <input style={{ width: 50 }} inputMode="decimal" value={w ?? dW.toFixed(0)} onChange={(e) => setW(e.target.value)} />
@@ -240,9 +295,15 @@ function SelectedFurniture({ asset, unitSystem, onApply, onUnplace, onDeselect }
         </a>
       )}
 
-      <button className="danger" onClick={onUnplace} style={{ marginTop: 2 }}>
-        Remove from room
-      </button>
+      {placed ? (
+        <button className="danger" onClick={onUnplace} style={{ marginTop: 2 }}>
+          Remove from room
+        </button>
+      ) : (
+        <button className="primary" onClick={onPlace} style={{ marginTop: 2 }}>
+          Place in room
+        </button>
+      )}
     </div>
   );
 }
