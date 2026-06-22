@@ -76,7 +76,11 @@ export function CalibrateScene(props: Props) {
         ref={(o) => o?.traverse((c) => c.layers.set(BACKGROUND_LAYER))}
         position={[0, 0.012, 0]}
         args={[40, 40]}
+        cellSize={0.5}
+        cellThickness={1}
         cellColor="#a7adb7"
+        sectionSize={0.5}
+        sectionThickness={1}
         sectionColor="#a7adb7"
         fadeDistance={35}
         infiniteGrid
