@@ -28,6 +28,13 @@ export interface SplatEntry {
 
 type Registry = Map<string, SplatEntry>;
 
+/**
+ * Objects on this THREE layer are drawn *before* the splat (so the splat
+ * occludes them — e.g. the floor grid, which otherwise bleeds through walls).
+ * Everything else is drawn after the splat, always on top.
+ */
+export const BACKGROUND_LAYER = 1;
+
 const SplatContext = createContext<Registry | null>(null);
 
 export function useSplatRegistry(): Registry | null {
@@ -51,15 +58,24 @@ function SplatFrame({ registry }: { registry: Registry }) {
       }
     }
 
+    const cam = state.camera;
+
     if (entries.length === 0) {
+      cam.layers.enableAll();
       gl.autoClear = true;
-      gl.render(state.scene, state.camera);
+      gl.render(state.scene, cam);
       return;
     }
 
-    // 2. Splats first (they're the backdrop).
+    // 2. Background layer (e.g. the floor grid) — drawn first so the splat
+    //    occludes it (no bleeding through walls).
+    cam.layers.set(BACKGROUND_LAYER);
     gl.autoClear = true;
     gl.clear();
+    gl.render(state.scene, cam);
+
+    // 3. Splats (depth-tested against the background).
+    cam.layers.enableAll();
     gl.autoClear = false;
     for (const e of entries) {
       try {
@@ -69,10 +85,14 @@ function SplatFrame({ registry }: { registry: Registry }) {
       }
     }
 
-    // 3. R3F scene (furniture, gizmos, bounds box, measurement markers) on top
-    //    — clear depth first so editing UI is never hidden behind the splat.
+    // 4. Foreground (furniture, gizmos, bounds box, markers) — on top of the
+    //    splat (depth cleared so editing UI is never hidden behind it).
+    cam.layers.set(0);
     gl.clearDepth();
-    gl.render(state.scene, state.camera);
+    gl.render(state.scene, cam);
+
+    // Restore so R3F pointer raycasting sees every layer.
+    cam.layers.enableAll();
     gl.autoClear = true;
   }, 1); // priority > 0 takes over R3F's automatic render
 

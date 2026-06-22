@@ -80,12 +80,7 @@ export function RoomEditor({ projectId, roomId }: Props) {
       <div style={{ flex: 1, position: "relative" }}>
         <Toolbar onDelete={onDelete} />
         <SceneCanvas initialView={initialView}>
-          <RoomScene
-            items={items}
-            onTransform={onTransform}
-            worldBounds={worldBounds}
-            showGrid={!splatUrl}
-          >
+          <RoomScene items={items} onTransform={onTransform} worldBounds={worldBounds}>
             {splatUrl && (
               <SplatRoom
                 url={splatUrl}

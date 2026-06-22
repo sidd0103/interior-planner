@@ -5,6 +5,7 @@ import { Grid, TransformControls } from "@react-three/drei";
 import * as THREE from "three";
 import { FurnitureItem } from "./FurnitureItem";
 import { BoundsBox, type WorldBox } from "@/components/measure/BoundsBox";
+import { BACKGROUND_LAYER } from "./SplatStage";
 import { useEditor } from "@/lib/scene/editorStore";
 import { findOverlaps, withinBoundsXZ, snapToWalls } from "@/lib/geometry/collision";
 import type { SceneItem, TransformPatch } from "@/lib/scene/types";
@@ -88,14 +89,20 @@ export function RoomScene({ items, onTransform, children, showGrid = true, world
 
       {showGrid && (
         <Grid
+          // Background layer: drawn before the splat so the splat occludes it
+          // (no bleeding through walls). See SplatStage. Lifted a hair above
+          // the floor so its lines aren't z-fought away by the splat floor.
+          ref={(o) => o?.traverse((c) => c.layers.set(BACKGROUND_LAYER))}
+          position={[0, 0.012, 0]}
           args={[30, 30]}
           cellSize={0.5}
-          cellThickness={0.6}
-          cellColor="#2b3038"
+          cellThickness={0.7}
+          cellColor="#7f8895"
           sectionSize={1}
-          sectionThickness={1}
-          sectionColor="#3a414d"
-          fadeDistance={28}
+          sectionThickness={1.1}
+          sectionColor="#5b9dff"
+          fadeDistance={26}
+          fadeStrength={1.5}
           infiniteGrid
         />
       )}

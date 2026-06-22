@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
-import { Line, TransformControls } from "@react-three/drei";
+import { Line, TransformControls, Grid } from "@react-three/drei";
 import * as THREE from "three";
 import { SplatRoom } from "@/components/scene/SplatRoom";
+import { BACKGROUND_LAYER } from "@/components/scene/SplatStage";
 import { useSplatRaycast } from "@/components/scene/useSplatRaycast";
 import { useEditor } from "@/lib/scene/editorStore";
 import { orientedToWorld } from "@/lib/geometry/calibrate";
@@ -71,6 +72,15 @@ export function CalibrateScene(props: Props) {
       <ambientLight intensity={0.75} />
       <hemisphereLight args={["#cfd8ff", "#202028", 0.5]} />
       <directionalLight position={[5, 9, 4]} intensity={0.7} />
+      <Grid
+        ref={(o) => o?.traverse((c) => c.layers.set(BACKGROUND_LAYER))}
+        position={[0, 0.012, 0]}
+        args={[40, 40]}
+        cellColor="#2b3038"
+        sectionColor="#3a414d"
+        fadeDistance={35}
+        infiniteGrid
+      />
 
       <SplatRoom url={props.splatUrl} format={props.splatFormat} transform={t} />
 
