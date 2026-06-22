@@ -51,22 +51,29 @@ function SplatFrame({ registry }: { registry: Registry }) {
       }
     }
 
-    // 2. Render the regular scene (furniture, grid, gizmos).
-    gl.autoClear = true;
-    gl.render(state.scene, state.camera);
-
-    // 3. Render each splat in its own pass on top, without clearing.
-    if (entries.length) {
-      gl.autoClear = false;
-      for (const e of entries) {
-        try {
-          e.viewer.render();
-        } catch {
-          /* viewer not ready */
-        }
-      }
+    if (entries.length === 0) {
       gl.autoClear = true;
+      gl.render(state.scene, state.camera);
+      return;
     }
+
+    // 2. Splats first (they're the backdrop).
+    gl.autoClear = true;
+    gl.clear();
+    gl.autoClear = false;
+    for (const e of entries) {
+      try {
+        e.viewer.render();
+      } catch {
+        /* viewer not ready */
+      }
+    }
+
+    // 3. R3F scene (furniture, gizmos, bounds box, measurement markers) on top
+    //    — clear depth first so editing UI is never hidden behind the splat.
+    gl.clearDepth();
+    gl.render(state.scene, state.camera);
+    gl.autoClear = true;
   }, 1); // priority > 0 takes over R3F's automatic render
 
   return null;

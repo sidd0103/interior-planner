@@ -86,7 +86,7 @@ export function BoundsBox({ box, editable, onChange }: Props) {
     <group>
       <mesh position={center}>
         <boxGeometry args={size} />
-        <meshBasicMaterial color="#5b9dff" wireframe transparent opacity={0.55} />
+        <meshBasicMaterial color="#5b9dff" wireframe transparent opacity={0.9} />
       </mesh>
 
       {editable &&
@@ -103,11 +103,11 @@ export function BoundsBox({ box, editable, onChange }: Props) {
               setSel(f.key);
             }}
           >
-            <sphereGeometry args={[0.09, 16, 16]} />
+            <sphereGeometry args={[0.12, 16, 16]} />
             <meshStandardMaterial
-              color={sel === f.key ? "#5b9dff" : "#cfd8ff"}
-              emissive="#3a7bd5"
-              emissiveIntensity={sel === f.key ? 0.7 : 0.25}
+              color={sel === f.key ? "#ffffff" : "#9ec2ff"}
+              emissive="#5b9dff"
+              emissiveIntensity={sel === f.key ? 1.0 : 0.6}
             />
           </mesh>
         ))}
