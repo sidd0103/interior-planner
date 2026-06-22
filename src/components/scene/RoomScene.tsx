@@ -19,6 +19,8 @@ interface Props {
   showGrid?: boolean;
   /** Calibrated room bounds (world space) — drawn + used for snapping/warnings. */
   worldBounds?: WorldBox;
+  /** Reports a mesh's actual rendered size (to persist as the asset's dims). */
+  onMeasure?: (assetId: string, size: SceneItem["realDims"]) => void;
 }
 
 /**
@@ -26,7 +28,14 @@ interface Props {
  * single transform gizmo bound to the current selection. Lives inside a
  * <Canvas> (see SceneCanvas).
  */
-export function RoomScene({ items, onTransform, children, showGrid = true, worldBounds }: Props) {
+export function RoomScene({
+  items,
+  onTransform,
+  children,
+  showGrid = true,
+  worldBounds,
+  onMeasure,
+}: Props) {
   const { selectedId, mode, select, setDragging } = useEditor();
 
   // Registry of each item's Object3D so we can attach the gizmo to the selection.
@@ -120,6 +129,7 @@ export function RoomScene({ items, onTransform, children, showGrid = true, world
             overlapping={warn.has(item.id)}
             onSelect={select}
             registerObject={registerObject}
+            onMeasure={onMeasure}
           />
         ))}
       </Suspense>

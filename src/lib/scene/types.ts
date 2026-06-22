@@ -8,6 +8,8 @@ import type { Vec3, RoomDimensions } from "@/lib/storage/types";
 export interface SceneItem {
   /** PlacedFurniture id. */
   id: string;
+  /** FurnitureAsset id (dimensions/price/link live on the asset). */
+  assetId: string;
   label: string;
   /** Resolved object URL of the GLB, if generated; otherwise a placeholder box is shown. */
   glbUrl?: string;

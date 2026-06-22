@@ -15,6 +15,12 @@ import type { FurnitureAsset } from "@/lib/storage/types";
 import { FurnitureGenerator } from "./FurnitureGenerator";
 import { GenerationStatus } from "./GenerationStatus";
 
+/** Round to 1 decimal, dropping a trailing `.0`. */
+function fmt(n: number): string {
+  const r = Math.round(n * 10) / 10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+}
+
 interface Props {
   projectId: string;
   roomName: string;
@@ -211,6 +217,23 @@ function FurnitureProperties({
   const [d, setD] = useState<string | null>(null);
   const [h, setH] = useState<string | null>(null);
   const dimsDirty = w !== null || d !== null || h !== null;
+
+  // Editing one dimension scales all of them proportionally (the mesh only
+  // ever scales uniformly, so the box stays wrapped tight).
+  const setAxis = (axis: "w" | "d" | "h", val: string) => {
+    const base = axis === "w" ? dW : axis === "d" ? dD : dH;
+    const num = parseFloat(val);
+    if (!num || num <= 0 || base <= 0) {
+      if (axis === "w") setW(val);
+      else if (axis === "d") setD(val);
+      else setH(val);
+      return;
+    }
+    const ratio = num / base;
+    setW(axis === "w" ? val : fmt(dW * ratio));
+    setD(axis === "d" ? val : fmt(dD * ratio));
+    setH(axis === "h" ? val : fmt(dH * ratio));
+  };
   const applyDims = () => {
     onApply({
       realDims: {
@@ -248,12 +271,12 @@ function FurnitureProperties({
       </div>
 
       <label className="muted" style={{ fontSize: 12 }}>
-        Bounding box — W×D×H ({unit})
+        Size — W×D×H ({unit}) · scales proportionally
       </label>
       <div className="row" style={{ gap: 6, alignItems: "center" }}>
-        <input style={{ width: 50 }} inputMode="decimal" value={w ?? dW.toFixed(0)} onChange={(e) => setW(e.target.value)} />
-        <input style={{ width: 50 }} inputMode="decimal" value={d ?? dD.toFixed(0)} onChange={(e) => setD(e.target.value)} />
-        <input style={{ width: 50 }} inputMode="decimal" value={h ?? dH.toFixed(0)} onChange={(e) => setH(e.target.value)} />
+        <input style={{ width: 50 }} inputMode="decimal" value={w ?? fmt(dW)} onChange={(e) => setAxis("w", e.target.value)} />
+        <input style={{ width: 50 }} inputMode="decimal" value={d ?? fmt(dD)} onChange={(e) => setAxis("d", e.target.value)} />
+        <input style={{ width: 50 }} inputMode="decimal" value={h ?? fmt(dH)} onChange={(e) => setAxis("h", e.target.value)} />
         <button className={dimsDirty ? "primary" : ""} disabled={!dimsDirty} onClick={applyDims} title="Apply size" style={{ padding: "6px 10px", marginLeft: "auto" }}>
           ✓
         </button>

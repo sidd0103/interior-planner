@@ -98,6 +98,13 @@ export function RoomEditor({ projectId, roomId }: Props) {
     mutate();
   }
 
+  // The GLB's actual rendered size becomes the asset's stored dims, so the box,
+  // labels, collision, and editor all agree (and the box wraps the mesh tight).
+  async function onMeasure(assetId: string, size: { width: number; height: number; depth: number }) {
+    await repo.updateFurniture(assetId, { realDims: size });
+    mutate();
+  }
+
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
       {room &&
@@ -132,6 +139,7 @@ export function RoomEditor({ projectId, roomId }: Props) {
             items={calibrating ? [] : items}
             onTransform={onTransform}
             worldBounds={calibrating ? undefined : worldBounds}
+            onMeasure={onMeasure}
           >
             {splatUrl && (
               <SplatRoom

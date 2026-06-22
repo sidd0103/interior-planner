@@ -1,49 +1,65 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { SceneLabel } from "@/components/measure/BoundsBox";
 import { usePrefs } from "@/lib/scene/prefs";
 import { formatLength } from "@/lib/geometry/units";
+import type { RoomDimensions } from "@/lib/storage/types";
 import type { SceneItem } from "@/lib/scene/types";
 
 /**
- * Loads a GLB and normalizes it to fit the item's real-world bounding box, so a
- * Meshy mesh of arbitrary native scale appears at correct metric size.
+ * Loads a GLB and scales it uniformly to fit the item's real-world dimensions.
+ * Reports the actual rendered bounding size so the wireframe box wraps the mesh
+ * tightly (no gap from proportion mismatch).
  */
-function GLBModel({ url, realDims }: { url: string; realDims: SceneItem["realDims"] }) {
+function GLBModel({
+  url,
+  realDims,
+  onSize,
+}: {
+  url: string;
+  realDims: RoomDimensions;
+  onSize: (size: RoomDimensions) => void;
+}) {
   const { scene } = useGLTF(url);
 
-  const normalized = useMemo(() => {
+  const { object, size } = useMemo(() => {
     const clone = scene.clone(true);
-    // Measure native bounds, then scale uniformly so the largest axis matches
-    // the requested real-world dimension and recenter on the floor.
     const box = new THREE.Box3().setFromObject(clone);
-    const size = new THREE.Vector3();
+    const native = new THREE.Vector3();
     const center = new THREE.Vector3();
-    box.getSize(size);
+    box.getSize(native);
     box.getCenter(center);
 
     const target = new THREE.Vector3(realDims.width, realDims.height, realDims.depth);
-    const sx = size.x > 1e-6 ? target.x / size.x : 1;
-    const sy = size.y > 1e-6 ? target.y / size.y : 1;
-    const sz = size.z > 1e-6 ? target.z / size.z : 1;
-    // Uniform scale keeps proportions; pick the smallest so it never exceeds any target dim.
+    const sx = native.x > 1e-6 ? target.x / native.x : 1;
+    const sy = native.y > 1e-6 ? target.y / native.y : 1;
+    const sz = native.z > 1e-6 ? target.z / native.z : 1;
+    // Uniform scale keeps proportions; smallest ratio so it never exceeds a target.
     const s = Math.min(sx, sy, sz);
 
     const wrapper = new THREE.Group();
     clone.position.set(-center.x, -box.min.y, -center.z); // sit on y=0, centered in x/z
     wrapper.add(clone);
     wrapper.scale.setScalar(s);
-    return wrapper;
+    // Actual rendered extent of the mesh — the tight bounding size.
+    const rendered: RoomDimensions = {
+      width: native.x * s,
+      height: native.y * s,
+      depth: native.z * s,
+    };
+    return { object: wrapper, size: rendered };
   }, [scene, realDims.width, realDims.height, realDims.depth]);
 
-  return <primitive object={normalized} />;
+  useEffect(() => onSize(size), [size, onSize]);
+
+  return <primitive object={object} />;
 }
 
 /** Placeholder shown before a GLB exists: a labeled box at the real-world size. */
-function PlaceholderBox({ realDims }: { realDims: SceneItem["realDims"] }) {
+function PlaceholderBox({ realDims }: { realDims: RoomDimensions }) {
   const { width, height, depth } = realDims;
   return (
     <mesh position={[0, height / 2, 0]} castShadow receiveShadow>
@@ -54,9 +70,15 @@ function PlaceholderBox({ realDims }: { realDims: SceneItem["realDims"] }) {
 }
 
 /** The visual (GLB or placeholder box) for an item, with no interaction. */
-function FurnitureVisual({ item }: { item: SceneItem }) {
+function FurnitureVisual({
+  item,
+  onSize,
+}: {
+  item: SceneItem;
+  onSize?: (size: RoomDimensions) => void;
+}) {
   return item.glbUrl ? (
-    <GLBModel url={item.glbUrl} realDims={item.realDims} />
+    <GLBModel url={item.glbUrl} realDims={item.realDims} onSize={onSize ?? (() => {})} />
   ) : (
     <PlaceholderBox realDims={item.realDims} />
   );
@@ -79,9 +101,21 @@ interface Props {
   onSelect: (id: string) => void;
   /** Register/unregister this item's Object3D so the scene can attach the gizmo. */
   registerObject: (id: string, obj: THREE.Object3D | null) => void;
+  /**
+   * Reports the mesh's actual rendered size so it can be persisted as the real
+   * dims (keeps the box, labels, collision, and editor in agreement).
+   */
+  onMeasure?: (assetId: string, size: RoomDimensions) => void;
 }
 
-export function FurnitureItem({ item, selected, overlapping, onSelect, registerObject }: Props) {
+export function FurnitureItem({
+  item,
+  selected,
+  overlapping,
+  onSelect,
+  registerObject,
+  onMeasure,
+}: Props) {
   const ref = useRef<THREE.Group>(null);
   const unitSystem = usePrefs((s) => s.unitSystem);
 
@@ -91,7 +125,25 @@ export function FurnitureItem({ item, selected, overlapping, onSelect, registerO
     // Re-register if the id changes.
   }, [item.id, registerObject]);
 
-  const { width: w, height: h, depth: d } = item.realDims;
+  // Tight rendered size of the mesh (drives the box/labels immediately, and is
+  // reported up so the asset's stored dims match what's drawn).
+  const [measured, setMeasured] = useState<RoomDimensions | null>(null);
+  const onSize = useCallback(
+    (size: RoomDimensions) => {
+      setMeasured(size);
+      const r = item.realDims;
+      const ref = Math.max(r.width, r.height, r.depth, 0.01);
+      const diff =
+        Math.abs(size.width - r.width) +
+        Math.abs(size.height - r.height) +
+        Math.abs(size.depth - r.depth);
+      if (diff / ref > 0.02) onMeasure?.(item.assetId, size);
+    },
+    [item.realDims, item.assetId, onMeasure],
+  );
+
+  const box = item.glbUrl ? measured ?? item.realDims : item.realDims;
+  const { width: w, height: h, depth: d } = box;
 
   return (
     <group
@@ -104,10 +156,9 @@ export function FurnitureItem({ item, selected, overlapping, onSelect, registerO
         onSelect(item.id);
       }}
     >
-      <FurnitureVisual item={item} />
+      <FurnitureVisual item={item} onSize={onSize} />
       {selected && (
-        // Wireframe bounds, shown only while selected. Red if it intersects
-        // another item, blue otherwise.
+        // Wireframe bounds wrapping the mesh. Red if it intersects another item.
         <mesh position={[0, h / 2, 0]}>
           <boxGeometry args={[w * 1.02, h * 1.02, d * 1.02]} />
           <meshBasicMaterial

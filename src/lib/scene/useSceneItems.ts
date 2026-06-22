@@ -60,6 +60,7 @@ export function useSceneItems(roomId: string) {
     const asset = assets[p.furnitureAssetId];
     return {
       id: p.id,
+      assetId: p.furnitureAssetId,
       label: asset?.name ?? "Furniture",
       glbUrl: asset?.glbAssetId ? urls[asset.glbAssetId] : undefined,
       realDims: asset?.realDims ?? FALLBACK_DIMS,
