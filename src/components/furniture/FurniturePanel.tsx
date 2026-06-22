@@ -3,6 +3,8 @@
 import useSWR from "swr";
 import Link from "next/link";
 import * as repo from "@/lib/storage/repo";
+import { usePrefs } from "@/lib/scene/prefs";
+import { metersToSmall, smallUnitLabel } from "@/lib/geometry/units";
 import { FurnitureGenerator } from "./FurnitureGenerator";
 import { GenerationStatus } from "./GenerationStatus";
 
@@ -18,6 +20,8 @@ interface Props {
  * place any library asset into the room.
  */
 export function FurniturePanel({ projectId, roomName, placedCount, onPlace }: Props) {
+  const unitSystem = usePrefs((s) => s.unitSystem);
+  const unit = smallUnitLabel(unitSystem);
   const { data: furniture, mutate } = useSWR(["furniture", projectId], () =>
     repo.listFurniture(projectId),
   );
@@ -64,8 +68,9 @@ export function FurniturePanel({ projectId, roomName, placedCount, onPlace }: Pr
               <GenerationStatus furniture={f} onUpdate={mutate} />
             </div>
             <span className="muted" style={{ fontSize: 11 }}>
-              {(f.realDims.width * 100).toFixed(0)}×{(f.realDims.depth * 100).toFixed(0)}×
-              {(f.realDims.height * 100).toFixed(0)} cm
+              {metersToSmall(f.realDims.width, unitSystem).toFixed(0)}×
+              {metersToSmall(f.realDims.depth, unitSystem).toFixed(0)}×
+              {metersToSmall(f.realDims.height, unitSystem).toFixed(0)} {unit}
             </span>
             <div className="row" style={{ justifyContent: "space-between" }}>
               <button className="primary" onClick={() => onPlace(f.id)} style={{ padding: "6px 12px" }}>

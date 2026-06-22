@@ -33,6 +33,21 @@ export function feetInchesToMeters(feet: number, inches: number): number {
   return (feet * 12 + inches) * 0.0254;
 }
 
+/** The small-object unit for the system: centimeters (metric) or inches (imperial). */
+export function smallUnitLabel(sys: UnitSystem): "cm" | "in" {
+  return sys === "metric" ? "cm" : "in";
+}
+
+/** A small dimension in meters → a value in the system's small unit (cm or in). */
+export function metersToSmall(meters: number, sys: UnitSystem): number {
+  return sys === "metric" ? meters * 100 : meters / 0.0254;
+}
+
+/** A value in the system's small unit (cm or in) → meters. */
+export function smallToMeters(value: number, sys: UnitSystem): number {
+  return sys === "metric" ? value / 100 : value * 0.0254;
+}
+
 /** meters → whole feet + remainder inches (for prefilling imperial inputs). */
 export function metersToFeetInches(meters: number): { feet: number; inches: number } {
   const totalInches = meters * IN_PER_M;
