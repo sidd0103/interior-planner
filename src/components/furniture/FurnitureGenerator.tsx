@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import * as repo from "@/lib/storage/repo";
+import { putAsset } from "@/lib/storage/blobStore";
 import { fileToDataUri } from "@/lib/util/file";
 import { usePrefs } from "@/lib/scene/prefs";
 import { smallToMeters, smallUnitLabel } from "@/lib/geometry/units";
@@ -55,7 +56,7 @@ export function FurnitureGenerator({ projectId, onCreated }: Props) {
       depth: smallToMeters(+d, unitSystem),
       height: smallToMeters(+h, unitSystem),
     };
-    const sourceImageAssetId = await repo.putAsset(file);
+    const sourceImageAssetId = await putAsset(file);
     const asset = await repo.createFurniture({
       projectId,
       name: name.trim(),
@@ -63,7 +64,7 @@ export function FurnitureGenerator({ projectId, onCreated }: Props) {
       realDims,
       price: +price || 0,
     });
-    const job = await repo.createJob("meshy");
+    const job = await repo.createJob("meshy", projectId);
     await repo.updateFurniture(asset.id, { jobId: job.id });
     onCreated(); // show the new asset (as a box) immediately
 

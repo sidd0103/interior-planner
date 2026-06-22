@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import useSWR from "swr";
 import { useJob } from "@/lib/jobs/useJob";
 import * as repo from "@/lib/storage/repo";
+import { putAsset } from "@/lib/storage/blobStore";
 import type { FurnitureAsset } from "@/lib/storage/types";
 
 interface StatusResp {
@@ -52,7 +53,7 @@ export function GenerationStatus({
           const res = await fetch(`/api/meshy/download/${taskId}`);
           if (!res.ok) throw new Error(await res.text());
           const blob = await res.blob();
-          const glbAssetId = await repo.putAsset(blob);
+          const glbAssetId = await putAsset(blob);
           await repo.updateFurniture(furniture.id, { glbAssetId });
           if (furniture.jobId)
             await repo.updateJob(furniture.jobId, { status: "done", resultAssetId: glbAssetId });

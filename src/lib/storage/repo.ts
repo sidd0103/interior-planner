@@ -1,13 +1,39 @@
+"use server";
+
 /**
- * Repository facade over Dexie (metadata) + blobStore (binaries).
+ * Repository facade — Server Actions over Neon Postgres (Drizzle).
  *
- * The UI talks only to this module, never to Dexie directly. That keeps the
- * persistence backend swappable: a future cloud implementation can satisfy the
- * same function signatures (Postgres + object storage) without UI changes.
+ * The UI imports this module and calls it like async functions; each call runs
+ * on the server, enforces access via the DAL (owner-only writes, owner-or-public
+ * reads), and queries Drizzle. Signatures match the former local-first facade so
+ * the client callers are unchanged. Asset blobs live in Vercel Blob and are
+ * resolved via getAssetUrl (see also the `assets` table).
  */
 
-import { db } from "./db";
-import { putAsset, getAsset, getAssetUrl, deleteAsset } from "./blobStore";
+import { desc, eq, inArray } from "drizzle-orm";
+import { getDb } from "@/lib/db/client";
+import {
+  projects,
+  rooms,
+  jobs,
+  measurements,
+  furniture,
+  placed,
+  assets,
+} from "@/lib/db/schema";
+import {
+  requireUser,
+  requireWrite,
+  canRead,
+  currentUserId,
+  projectIdOfRoom,
+  projectIdOfFurniture,
+  projectIdOfMeasurement,
+  projectIdOfPlaced,
+  projectIdOfJob,
+  projectIdOfAsset,
+} from "@/lib/auth/dal";
+import { del as blobDel } from "@vercel/blob";
 import { newId } from "./id";
 import type {
   Project,
@@ -21,82 +47,133 @@ import type {
 
 const now = () => Date.now();
 
-// Re-export blob helpers so callers have a single import surface.
-export { putAsset, getAsset, getAssetUrl, deleteAsset };
+/** Convert SQL NULLs (and Drizzle's extra owner/visibility cols) to the app shape. */
+function clean<T>(row: Record<string, unknown>): T {
+  const out: Record<string, unknown> = {};
+  for (const k in row) out[k] = row[k] === null ? undefined : row[k];
+  return out as T;
+}
+
+/** Delete the Blob objects backing a set of assetIds (rows cascade separately). */
+async function purgeAssets(assetIds: string[]) {
+  const ids = assetIds.filter(Boolean);
+  if (ids.length === 0) return;
+  const rows = await getDb()
+    .select({ blobUrl: assets.blobUrl })
+    .from(assets)
+    .where(inArray(assets.id, ids));
+  const urls = rows.map((r) => r.blobUrl);
+  if (urls.length) {
+    try {
+      await blobDel(urls);
+    } catch {
+      /* best-effort blob cleanup */
+    }
+  }
+}
 
 // --- Projects ---
 
 export async function createProject(name: string): Promise<Project> {
-  const p: Project = { id: newId(), name, createdAt: now(), updatedAt: now() };
-  await db().projects.add(p);
-  return p;
+  const userId = (await requireUser()).id;
+  const p = { id: newId(), userId, name, visibility: "private" as const, createdAt: now(), updatedAt: now() };
+  await getDb().insert(projects).values(p);
+  return clean<Project>(p);
 }
 
 export async function listProjects(): Promise<Project[]> {
-  return db().projects.orderBy("updatedAt").reverse().toArray();
+  const uid = await currentUserId();
+  if (!uid) return [];
+  const rows = await getDb()
+    .select()
+    .from(projects)
+    .where(eq(projects.userId, uid))
+    .orderBy(desc(projects.updatedAt));
+  return rows.map((r) => clean<Project>(r));
 }
 
-export function getProject(id: Id): Promise<Project | undefined> {
-  return db().projects.get(id);
+export async function getProject(id: Id): Promise<Project | undefined> {
+  if (!(await canRead(id))) return undefined;
+  const rows = await getDb().select().from(projects).where(eq(projects.id, id)).limit(1);
+  return rows[0] ? clean<Project>(rows[0]) : undefined;
 }
 
 export async function renameProject(id: Id, name: string): Promise<void> {
-  await db().projects.update(id, { name, updatedAt: now() });
+  await requireWrite(id);
+  await getDb().update(projects).set({ name, updatedAt: now() }).where(eq(projects.id, id));
 }
 
-/** Delete a project and all rooms, furniture, placements, jobs, and assets under it. */
+/** Delete a project and (via DB cascade) everything under it; Blob objects too. */
 export async function deleteProject(id: Id): Promise<void> {
-  const rooms = await listRooms(id);
-  await Promise.all(rooms.map((r) => deleteRoom(r.id)));
-  const furniture = await listFurniture(id);
-  await Promise.all(furniture.map((f) => deleteFurniture(f.id)));
-  await db().projects.delete(id);
+  await requireWrite(id);
+  const owned = await getDb().select({ id: assets.id }).from(assets).where(eq(assets.projectId, id));
+  await purgeAssets(owned.map((a) => a.id));
+  await getDb().delete(projects).where(eq(projects.id, id));
 }
 
 // --- Rooms ---
 
 export async function createRoom(projectId: Id, name: string): Promise<Room> {
-  const r: Room = { id: newId(), projectId, name, createdAt: now(), updatedAt: now() };
-  await db().rooms.add(r);
-  return r;
+  await requireWrite(projectId);
+  const r = { id: newId(), projectId, name, createdAt: now(), updatedAt: now() };
+  await getDb().insert(rooms).values(r);
+  return clean<Room>(r);
 }
 
-export function listRooms(projectId: Id): Promise<Room[]> {
-  return db().rooms.where("projectId").equals(projectId).toArray();
+export async function listRooms(projectId: Id): Promise<Room[]> {
+  if (!(await canRead(projectId))) return [];
+  const rows = await getDb().select().from(rooms).where(eq(rooms.projectId, projectId));
+  return rows.map((r) => clean<Room>(r));
 }
 
-export function getRoom(id: Id): Promise<Room | undefined> {
-  return db().rooms.get(id);
+export async function getRoom(id: Id): Promise<Room | undefined> {
+  if (!(await canRead(await projectIdOfRoom(id)))) return undefined;
+  const rows = await getDb().select().from(rooms).where(eq(rooms.id, id)).limit(1);
+  return rows[0] ? clean<Room>(rows[0]) : undefined;
 }
 
 export async function updateRoom(id: Id, patch: Partial<Room>): Promise<void> {
-  await db().rooms.update(id, { ...patch, updatedAt: now() });
+  await requireWrite(await projectIdOfRoom(id));
+  const { id: _omit, projectId: _omit2, createdAt: _omit3, ...rest } = patch;
+  void _omit;
+  void _omit2;
+  void _omit3;
+  await getDb().update(rooms).set({ ...rest, updatedAt: now() }).where(eq(rooms.id, id));
 }
 
 export async function deleteRoom(id: Id): Promise<void> {
-  const room = await getRoom(id);
-  if (room?.videoAssetId) await deleteAsset(room.videoAssetId);
-  if (room?.splatAssetId) await deleteAsset(room.splatAssetId);
-  const measurements = await listMeasurements(id);
-  await Promise.all(measurements.map((m) => deleteMeasurement(m.id)));
-  await db().placed.where("roomId").equals(id).delete();
-  await db().rooms.delete(id);
+  const pid = await projectIdOfRoom(id);
+  await requireWrite(pid);
+  const r = await getDb()
+    .select({ video: rooms.videoAssetId, splat: rooms.splatAssetId })
+    .from(rooms)
+    .where(eq(rooms.id, id))
+    .limit(1);
+  await purgeAssets([r[0]?.video, r[0]?.splat].filter(Boolean) as string[]);
+  await getDb().delete(rooms).where(eq(rooms.id, id));
 }
 
 // --- Jobs ---
 
-export async function createJob(kind: Job["kind"]): Promise<Job> {
-  const j: Job = { id: newId(), kind, status: "queued", createdAt: now(), updatedAt: now() };
-  await db().jobs.add(j);
-  return j;
+export async function createJob(kind: Job["kind"], projectId: Id): Promise<Job> {
+  await requireWrite(projectId);
+  const j = { id: newId(), projectId, kind, status: "queued" as const, createdAt: now(), updatedAt: now() };
+  await getDb().insert(jobs).values(j);
+  return clean<Job>(j);
 }
 
-export function getJob(id: Id): Promise<Job | undefined> {
-  return db().jobs.get(id);
+export async function getJob(id: Id): Promise<Job | undefined> {
+  if (!(await canRead(await projectIdOfJob(id)))) return undefined;
+  const rows = await getDb().select().from(jobs).where(eq(jobs.id, id)).limit(1);
+  return rows[0] ? clean<Job>(rows[0]) : undefined;
 }
 
 export async function updateJob(id: Id, patch: Partial<Job>): Promise<void> {
-  await db().jobs.update(id, { ...patch, updatedAt: now() });
+  await requireWrite(await projectIdOfJob(id));
+  const { id: _o, createdAt: _o3, ...rest } = patch;
+  void _o;
+  void _o3;
+  await getDb().update(jobs).set({ ...rest, updatedAt: now() }).where(eq(jobs.id, id));
 }
 
 // --- Measurements ---
@@ -104,21 +181,30 @@ export async function updateJob(id: Id, patch: Partial<Job>): Promise<void> {
 export async function addMeasurement(
   m: Omit<Measurement, "id" | "createdAt" | "updatedAt">,
 ): Promise<Measurement> {
-  const full: Measurement = { ...m, id: newId(), createdAt: now(), updatedAt: now() };
-  await db().measurements.add(full);
-  return full;
+  await requireWrite(await projectIdOfRoom(m.roomId));
+  const full = { ...m, id: newId(), createdAt: now(), updatedAt: now() };
+  await getDb().insert(measurements).values(full);
+  return clean<Measurement>(full);
 }
 
-export function listMeasurements(roomId: Id): Promise<Measurement[]> {
-  return db().measurements.where("roomId").equals(roomId).toArray();
+export async function listMeasurements(roomId: Id): Promise<Measurement[]> {
+  if (!(await canRead(await projectIdOfRoom(roomId)))) return [];
+  const rows = await getDb().select().from(measurements).where(eq(measurements.roomId, roomId));
+  return rows.map((r) => clean<Measurement>(r));
 }
 
 export async function updateMeasurement(id: Id, patch: Partial<Measurement>): Promise<void> {
-  await db().measurements.update(id, { ...patch, updatedAt: now() });
+  await requireWrite(await projectIdOfMeasurement(id));
+  const { id: _o, roomId: _o2, createdAt: _o3, ...rest } = patch;
+  void _o;
+  void _o2;
+  void _o3;
+  await getDb().update(measurements).set({ ...rest, updatedAt: now() }).where(eq(measurements.id, id));
 }
 
 export async function deleteMeasurement(id: Id): Promise<void> {
-  await db().measurements.delete(id);
+  await requireWrite(await projectIdOfMeasurement(id));
+  await getDb().delete(measurements).where(eq(measurements.id, id));
 }
 
 // --- Furniture assets ---
@@ -126,29 +212,42 @@ export async function deleteMeasurement(id: Id): Promise<void> {
 export async function createFurniture(
   f: Omit<FurnitureAsset, "id" | "createdAt" | "updatedAt">,
 ): Promise<FurnitureAsset> {
-  const full: FurnitureAsset = { ...f, id: newId(), createdAt: now(), updatedAt: now() };
-  await db().furniture.add(full);
-  return full;
+  await requireWrite(f.projectId);
+  const full = { ...f, id: newId(), createdAt: now(), updatedAt: now() };
+  await getDb().insert(furniture).values(full);
+  return clean<FurnitureAsset>(full);
 }
 
-export function listFurniture(projectId: Id): Promise<FurnitureAsset[]> {
-  return db().furniture.where("projectId").equals(projectId).toArray();
+export async function listFurniture(projectId: Id): Promise<FurnitureAsset[]> {
+  if (!(await canRead(projectId))) return [];
+  const rows = await getDb().select().from(furniture).where(eq(furniture.projectId, projectId));
+  return rows.map((r) => clean<FurnitureAsset>(r));
 }
 
-export function getFurniture(id: Id): Promise<FurnitureAsset | undefined> {
-  return db().furniture.get(id);
+export async function getFurniture(id: Id): Promise<FurnitureAsset | undefined> {
+  if (!(await canRead(await projectIdOfFurniture(id)))) return undefined;
+  const rows = await getDb().select().from(furniture).where(eq(furniture.id, id)).limit(1);
+  return rows[0] ? clean<FurnitureAsset>(rows[0]) : undefined;
 }
 
 export async function updateFurniture(id: Id, patch: Partial<FurnitureAsset>): Promise<void> {
-  await db().furniture.update(id, { ...patch, updatedAt: now() });
+  await requireWrite(await projectIdOfFurniture(id));
+  const { id: _o, projectId: _o2, createdAt: _o3, ...rest } = patch;
+  void _o;
+  void _o2;
+  void _o3;
+  await getDb().update(furniture).set({ ...rest, updatedAt: now() }).where(eq(furniture.id, id));
 }
 
 export async function deleteFurniture(id: Id): Promise<void> {
-  const f = await getFurniture(id);
-  if (f?.sourceImageAssetId) await deleteAsset(f.sourceImageAssetId);
-  if (f?.glbAssetId) await deleteAsset(f.glbAssetId);
-  await db().placed.where("furnitureAssetId").equals(id).delete();
-  await db().furniture.delete(id);
+  await requireWrite(await projectIdOfFurniture(id));
+  const f = await getDb()
+    .select({ img: furniture.sourceImageAssetId, glb: furniture.glbAssetId })
+    .from(furniture)
+    .where(eq(furniture.id, id))
+    .limit(1);
+  await purgeAssets([f[0]?.img, f[0]?.glb].filter(Boolean) as string[]);
+  await getDb().delete(furniture).where(eq(furniture.id, id));
 }
 
 // --- Placed furniture (instances in a room) ---
@@ -158,28 +257,74 @@ export async function placeFurniture(
   furnitureAssetId: Id,
   init?: Partial<Pick<PlacedFurniture, "position" | "rotation" | "scale">>,
 ): Promise<PlacedFurniture> {
-  const p: PlacedFurniture = {
+  await requireWrite(await projectIdOfRoom(roomId));
+  const p = {
     id: newId(),
     roomId,
     furnitureAssetId,
-    position: init?.position ?? [0, 0, 0],
-    rotation: init?.rotation ?? [0, 0, 0],
+    position: init?.position ?? ([0, 0, 0] as [number, number, number]),
+    rotation: init?.rotation ?? ([0, 0, 0] as [number, number, number]),
     scale: init?.scale ?? 1,
     createdAt: now(),
     updatedAt: now(),
   };
-  await db().placed.add(p);
-  return p;
+  await getDb().insert(placed).values(p);
+  return clean<PlacedFurniture>(p);
 }
 
-export function listPlaced(roomId: Id): Promise<PlacedFurniture[]> {
-  return db().placed.where("roomId").equals(roomId).toArray();
+export async function listPlaced(roomId: Id): Promise<PlacedFurniture[]> {
+  if (!(await canRead(await projectIdOfRoom(roomId)))) return [];
+  const rows = await getDb().select().from(placed).where(eq(placed.roomId, roomId));
+  return rows.map((r) => clean<PlacedFurniture>(r));
 }
 
 export async function updatePlaced(id: Id, patch: Partial<PlacedFurniture>): Promise<void> {
-  await db().placed.update(id, { ...patch, updatedAt: now() });
+  await requireWrite(await projectIdOfPlaced(id));
+  const { id: _o, roomId: _o2, furnitureAssetId: _o3, createdAt: _o4, ...rest } = patch;
+  void _o;
+  void _o2;
+  void _o3;
+  void _o4;
+  await getDb().update(placed).set({ ...rest, updatedAt: now() }).where(eq(placed.id, id));
 }
 
 export async function removePlaced(id: Id): Promise<void> {
-  await db().placed.delete(id);
+  await requireWrite(await projectIdOfPlaced(id));
+  await getDb().delete(placed).where(eq(placed.id, id));
+}
+
+// --- Assets (blob layer; full impl wired in P3) ---
+
+/** Resolve an assetId → its Vercel Blob public URL (access-checked). */
+export async function getAssetUrl(assetId: Id): Promise<string | undefined> {
+  if (!assetId) return undefined;
+  if (!(await canRead(await projectIdOfAsset(assetId)))) return undefined;
+  const rows = await getDb()
+    .select({ url: assets.blobUrl })
+    .from(assets)
+    .where(eq(assets.id, assetId))
+    .limit(1);
+  return rows[0]?.url;
+}
+
+/** Insert an `assets` row for an already-uploaded Blob; returns the assetId. */
+export async function registerAsset(input: {
+  blobUrl: string;
+  pathname: string;
+  projectId: Id;
+  contentType?: string;
+  size?: number;
+}): Promise<Id> {
+  await requireWrite(input.projectId);
+  const id = newId();
+  await getDb().insert(assets).values({
+    id,
+    blobUrl: input.blobUrl,
+    pathname: input.pathname,
+    projectId: input.projectId,
+    contentType: input.contentType ?? null,
+    size: input.size ?? null,
+    createdAt: now(),
+  });
+  return id;
 }

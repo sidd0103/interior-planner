@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import useSWR from "swr";
 import { useJob } from "@/lib/jobs/useJob";
 import * as repo from "@/lib/storage/repo";
+import { putAsset } from "@/lib/storage/blobStore";
 import { ROT_X180 } from "@/lib/geometry/vec3";
 import type { Room } from "@/lib/storage/types";
 
@@ -49,7 +50,7 @@ export function CaptureStatus({ room, onUpdate }: { room: Room; onUpdate: () => 
           const res = await fetch(`/api/worldlabs/download/${operationId}`);
           if (!res.ok) throw new Error(await res.text());
           const blob = await res.blob();
-          const splatAssetId = await repo.putAsset(blob);
+          const splatAssetId = await putAsset(blob);
 
           // World Labs gives us the metric scale directly — seed an initial
           // metric transform so the room is correctly scaled out of the box.

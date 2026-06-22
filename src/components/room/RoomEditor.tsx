@@ -15,7 +15,6 @@ import { useCalibration } from "@/components/measure/useCalibration";
 import { useSceneItems } from "@/lib/scene/useSceneItems";
 import { useEditor } from "@/lib/scene/editorStore";
 import { useAssetUrl } from "@/lib/storage/useAssetUrl";
-import { ensureDemoProject } from "@/lib/storage/seed";
 import { orientedToWorld } from "@/lib/geometry/calibrate";
 import * as repo from "@/lib/storage/repo";
 import type { TransformPatch } from "@/lib/scene/types";
@@ -71,12 +70,6 @@ export function RoomEditor({ projectId, roomId }: Props) {
     calib.reset();
     setCalibrating(false);
   };
-
-  // Apply any pending demo migrations (e.g. orientation fix) even when the room
-  // is opened directly, then refresh so the corrected transform takes effect.
-  useEffect(() => {
-    ensureDemoProject().then(() => mutateRoom());
-  }, [mutateRoom]);
 
   async function onTransform(id: string, patch: TransformPatch) {
     await repo.updatePlaced(id, patch);

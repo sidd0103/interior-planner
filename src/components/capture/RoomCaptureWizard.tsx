@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import * as repo from "@/lib/storage/repo";
+import { putAsset } from "@/lib/storage/blobStore";
 import { CaptureStatus } from "./CaptureStatus";
 import type { Room } from "@/lib/storage/types";
 
@@ -77,7 +78,7 @@ export function RoomCaptureWizard({ room, onUpdate }: Props) {
       if (!gen.ok) throw new Error(genJson.error || "Generation request failed");
 
       // 4. Record the job so CaptureStatus can poll it (and survive reloads).
-      const job = await repo.createJob("worldlabs");
+      const job = await repo.createJob("worldlabs", room.projectId);
       await repo.updateJob(job.id, { externalId: genJson.operationId, status: "processing" });
       await repo.updateRoom(room.id, { captureJobId: job.id });
       setFiles([]);
@@ -99,7 +100,7 @@ export function RoomCaptureWizard({ room, onUpdate }: Props) {
       const splatFormat = (SPLAT_EXTS as readonly string[]).includes(ext)
         ? (ext as SplatExt)
         : undefined;
-      const splatAssetId = await repo.putAsset(file);
+      const splatAssetId = await putAsset(file);
       await repo.updateRoom(room.id, { splatAssetId, splatFormat });
       setFiles([]);
       onUpdate();
