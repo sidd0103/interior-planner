@@ -106,23 +106,19 @@ export interface Job {
   updatedAt: number;
 }
 
-export type MeasureUnit = "m" | "cm" | "mm" | "ft" | "in";
-
 /**
  * A measure-tape segment the user drew directly in the 3D scene: two endpoints
- * (in oriented space — see RoomBounds) plus the real length they entered. The
- * oriented distance vs. the entered meters calibrates the scale.
+ * in oriented space (see RoomBounds). When the user types the segment's real
+ * length (`targetMeters`), it drives the room scale via least-squares; tapes
+ * without a target just display their length at the current scale.
  */
 export interface Measurement {
   id: Id;
   roomId: Id;
   /** Segment endpoints in oriented space (R·raw, native units). */
   endpoints: [Vec3, Vec3];
-  /** Numeric magnitude the user entered, e.g. 2.4. */
-  value: number;
-  unit: MeasureUnit;
-  /** `value` converted to meters (canonical form used by the calibrator). */
-  meters: number;
+  /** Real length the user measured, in meters. Drives scale when set. */
+  targetMeters?: number;
   createdAt: number;
   updatedAt: number;
 }

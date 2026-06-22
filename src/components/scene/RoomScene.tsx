@@ -109,7 +109,7 @@ export function RoomScene({ items, onTransform, children, showGrid = true, world
 
       <Suspense fallback={null}>{children}</Suspense>
 
-      {worldBounds && <BoundsBox box={worldBounds} />}
+      {worldBounds && <BoundsBox box={worldBounds} showLabels />}
 
       <Suspense fallback={null}>
         {items.map((item) => (

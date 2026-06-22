@@ -1,10 +1,34 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { TransformControls } from "@react-three/drei";
+import { Html, TransformControls } from "@react-three/drei";
 import * as THREE from "three";
 import { useEditor } from "@/lib/scene/editorStore";
+import { usePrefs } from "@/lib/scene/prefs";
+import { formatLength } from "@/lib/geometry/units";
 import type { Vec3 } from "@/lib/storage/types";
+
+/** A small non-interactive length chip anchored at a 3D point. */
+export function SceneLabel({ position, text }: { position: Vec3; text: string }) {
+  return (
+    <Html position={position} center distanceFactor={undefined} style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
+      <div
+        style={{
+          padding: "2px 7px",
+          borderRadius: 6,
+          background: "rgba(12,14,18,0.82)",
+          border: "1px solid rgba(255,255,255,0.16)",
+          color: "#e6ebf3",
+          fontSize: 12,
+          fontWeight: 600,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {text}
+      </div>
+    </Html>
+  );
+}
 
 export interface WorldBox {
   min: Vec3;
@@ -43,6 +67,8 @@ interface Props {
   box: WorldBox;
   /** Drag-to-resize face handles when true. */
   editable?: boolean;
+  /** Show 3D width/depth/height length labels (in the selected unit). */
+  showLabels?: boolean;
   onChange?: (box: WorldBox) => void;
 }
 
@@ -50,7 +76,8 @@ interface Props {
  * A world-space axis-aligned box drawn as a wireframe, with six face handles
  * (drag a face along its axis to fit a wall/floor/ceiling). Resizes on release.
  */
-export function BoundsBox({ box, editable, onChange }: Props) {
+export function BoundsBox({ box, editable, showLabels, onChange }: Props) {
+  const unitSystem = usePrefs((s) => s.unitSystem);
   const center: Vec3 = [
     (box.min[0] + box.max[0]) / 2,
     (box.min[1] + box.max[1]) / 2,
@@ -61,6 +88,14 @@ export function BoundsBox({ box, editable, onChange }: Props) {
     box.max[1] - box.min[1],
     box.max[2] - box.min[2],
   ];
+  // World space is metric, so the box extents are already in meters.
+  const labels: { position: Vec3; text: string }[] = showLabels
+    ? [
+        { position: [center[0], box.min[1], box.max[2]], text: formatLength(size[0], unitSystem) },
+        { position: [box.max[0], box.min[1], center[2]], text: formatLength(size[2], unitSystem) },
+        { position: [box.max[0], center[1], box.max[2]], text: formatLength(size[1], unitSystem) },
+      ]
+    : [];
 
   const [sel, setSel] = useState<string | null>(null);
   const objs = useRef(new Map<string, THREE.Object3D>());
@@ -88,6 +123,10 @@ export function BoundsBox({ box, editable, onChange }: Props) {
         <boxGeometry args={size} />
         <meshBasicMaterial color="#5b9dff" wireframe transparent opacity={0.9} />
       </mesh>
+
+      {labels.map((l, i) => (
+        <SceneLabel key={i} position={l.position} text={l.text} />
+      ))}
 
       {editable &&
         FACES.map((f) => (

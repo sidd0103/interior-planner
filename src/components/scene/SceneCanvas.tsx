@@ -9,6 +9,13 @@ interface Props {
   children: React.ReactNode;
   /** Initial camera placement (e.g. inside a captured room). */
   initialView?: InitialView;
+  /** Pointer-down on the canvas (used to distinguish look-drags from clicks). */
+  onPointerDown?: (e: React.PointerEvent) => void;
+  /**
+   * Click that hit no scene object. Defaults to clearing the selection; the
+   * calibrator overrides this to place tape points on the splat surface.
+   */
+  onPointerMissed?: (e: MouseEvent) => void;
 }
 
 /**
@@ -16,7 +23,7 @@ interface Props {
  * forward/back, WASD to walk. Clicking empty space clears the selection;
  * furniture gizmos still work (look is suppressed while dragging a gizmo).
  */
-export function SceneCanvas({ children, initialView }: Props) {
+export function SceneCanvas({ children, initialView, onPointerDown, onPointerMissed }: Props) {
   const select = useEditor((s) => s.select);
 
   return (
@@ -25,7 +32,8 @@ export function SceneCanvas({ children, initialView }: Props) {
       dpr={[1, 2]}
       gl={{ antialias: false, alpha: false, premultipliedAlpha: false }}
       camera={{ position: [4, 3, 6], fov: 60, near: 0.01, far: 1000 }}
-      onPointerMissed={() => select(null)}
+      onPointerDown={onPointerDown}
+      onPointerMissed={onPointerMissed ?? (() => select(null))}
       style={{ width: "100%", height: "100%", background: "#0b0d11" }}
     >
       <FirstPersonControls initialView={initialView} />

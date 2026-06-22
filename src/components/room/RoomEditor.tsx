@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { Loader } from "@react-three/drei";
 import { SceneCanvas } from "@/components/scene/SceneCanvas";
@@ -9,6 +9,9 @@ import { SplatRoom } from "@/components/scene/SplatRoom";
 import { Toolbar } from "@/components/scene/Toolbar";
 import { FurniturePanel } from "@/components/furniture/FurniturePanel";
 import { RoomToolsPanel } from "./RoomToolsPanel";
+import { CalibratePanel } from "@/components/measure/CalibratePanel";
+import { CalibrateTools } from "@/components/measure/CalibrateTools";
+import { useCalibration } from "@/components/measure/useCalibration";
 import { useSceneItems } from "@/lib/scene/useSceneItems";
 import { useEditor } from "@/lib/scene/editorStore";
 import { useAssetUrl } from "@/lib/storage/useAssetUrl";
@@ -28,11 +31,21 @@ export function RoomEditor({ projectId, roomId }: Props) {
   const { data: room, mutate: mutateRoom } = useSWR(["room", roomId], () => repo.getRoom(roomId));
   const splatUrl = useAssetUrl(room?.splatAssetId);
 
+  const [calibrating, setCalibrating] = useState(false);
+  const calib = useCalibration(room, mutateRoom);
+
+  // Click-to-place bridge: the canvas reports the screen pixel; CalibrateTools
+  // raycasts it against the splat. downPos lets us ignore look-drags.
+  const placeRef = useRef<((x: number, y: number) => void) | undefined>(undefined);
+  const downPos = useRef<{ x: number; y: number } | null>(null);
+
+  // The splat follows the live calibration scale while calibrating.
+  const splatTransform = calibrating ? calib.transform : room?.metricTransform;
+
   // Spawn at the room's capture point (inside), looking into the room.
   const initialView = useMemo(() => {
     const t = room?.metricTransform?.translation;
     if (!t) return undefined;
-    // Stand at eye height (the capture point can sit near the floor for imports).
     const eyeY = Math.max(t[1], 1.4);
     return {
       position: [t[0], eyeY, t[2]] as [number, number, number],
@@ -49,6 +62,15 @@ export function RoomEditor({ projectId, roomId }: Props) {
   }, [room?.metricTransform, room?.bounds]);
 
   useEffect(() => () => select(null), [select]);
+
+  const startCalibrating = () => {
+    select(null);
+    setCalibrating(true);
+  };
+  const stopCalibrating = () => {
+    calib.reset();
+    setCalibrating(false);
+  };
 
   // Apply any pending demo migrations (e.g. orientation fix) even when the room
   // is opened directly, then refresh so the corrected transform takes effect.
@@ -75,17 +97,44 @@ export function RoomEditor({ projectId, roomId }: Props) {
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
-      {room && <RoomToolsPanel projectId={projectId} room={room} onUpdate={mutateRoom} />}
+      {room &&
+        (calibrating ? (
+          <CalibratePanel calib={calib} onDone={stopCalibrating} />
+        ) : (
+          <RoomToolsPanel
+            projectId={projectId}
+            room={room}
+            onUpdate={mutateRoom}
+            onCalibrate={startCalibrating}
+          />
+        ))}
 
       <div style={{ flex: 1, position: "relative" }}>
-        <Toolbar onDelete={onDelete} />
-        <SceneCanvas initialView={initialView}>
-          <RoomScene items={items} onTransform={onTransform} worldBounds={worldBounds}>
+        {!calibrating && <Toolbar onDelete={onDelete} />}
+        <SceneCanvas
+          initialView={initialView}
+          onPointerDown={(e) => (downPos.current = { x: e.clientX, y: e.clientY })}
+          onPointerMissed={(e) => {
+            if (!calibrating) {
+              select(null);
+              return;
+            }
+            const d = downPos.current;
+            // Ignore look-drags (only near-stationary clicks place a point).
+            if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;
+            placeRef.current?.(e.clientX, e.clientY);
+          }}
+        >
+          <RoomScene
+            items={calibrating ? [] : items}
+            onTransform={onTransform}
+            worldBounds={calibrating ? undefined : worldBounds}
+          >
             {splatUrl && (
               <SplatRoom
                 url={splatUrl}
                 format={room?.splatFormat}
-                transform={room?.metricTransform}
+                transform={splatTransform}
                 upFlip={room?.splatUpFlip}
                 onAutoFit={async (t) => {
                   await repo.updateRoom(roomId, { metricTransform: t });
@@ -93,21 +142,25 @@ export function RoomEditor({ projectId, roomId }: Props) {
                 }}
               />
             )}
+            {calibrating && <CalibrateTools calib={calib} placeRef={placeRef} />}
           </RoomScene>
         </SceneCanvas>
         <div className="muted" style={{ position: "absolute", bottom: 12, left: 12, fontSize: 12 }}>
-          {items.length} item(s) · WASD to walk · drag to look · scroll to move · drag the gizmo to
-          move furniture
+          {calibrating
+            ? `WASD to walk · drag to look · ${calib.tool === "measure" ? "click to place tape points" : "drag the box faces"}`
+            : `${items.length} item(s) · WASD to walk · drag to look · scroll to move · drag the gizmo to move furniture`}
         </div>
         <Loader />
       </div>
 
-      <FurniturePanel
-        projectId={projectId}
-        roomName={room?.name ?? "Room"}
-        placedCount={placed?.length ?? 0}
-        onPlace={placeAsset}
-      />
+      {!calibrating && (
+        <FurniturePanel
+          projectId={projectId}
+          roomName={room?.name ?? "Room"}
+          placedCount={placed?.length ?? 0}
+          onPlace={placeAsset}
+        />
+      )}
     </div>
   );
 }

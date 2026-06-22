@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { recalibrate } from "./calibrate";
+import {
+  recalibrate,
+  scaleFromSpans,
+  transformForScale,
+  dimensionsForScale,
+} from "./calibrate";
 import { IDENTITY3 } from "./vec3";
 import type { Vec3 } from "@/lib/storage/types";
 
@@ -36,5 +41,31 @@ describe("recalibrate", () => {
     // translation.y = -scale * min.y = -3 * 1.2; floor world y = scale*1.2 + t.y = 0.
     expect(res.transform.translation[1]).toBeCloseTo(-3.6, 6);
     expect(res.transform.scale * 1.2 + res.transform.translation[1]).toBeCloseTo(0, 6);
+  });
+});
+
+describe("live calibration helpers", () => {
+  it("scaleFromSpans falls back when no tapes are measured", () => {
+    expect(scaleFromSpans([], 0.7)).toBe(0.7);
+  });
+
+  it("scaleFromSpans least-squares-fits the measured tapes", () => {
+    // One native-length-4 segment measured at 10 m ⇒ scale 2.5.
+    const s = scaleFromSpans(
+      [{ endpoints: [[0, 0, 0], [4, 0, 0]], meters: 10 }],
+      1,
+    );
+    expect(s).toBeCloseTo(2.5, 6);
+  });
+
+  it("transformForScale/dimensionsForScale extrapolate a scale to the room", () => {
+    const bounds = { min: [0, 0.5, 0] as Vec3, max: [4, 2.5, 3] as Vec3 };
+    const t = transformForScale(IDENTITY3, bounds, 2, 1234);
+    expect(t.translation[1]).toBeCloseTo(-1, 6); // -scale * min.y
+    expect(t.solvedAt).toBe(1234);
+    const d = dimensionsForScale(bounds, 2);
+    expect(d.width).toBeCloseTo(8, 6);
+    expect(d.depth).toBeCloseTo(6, 6);
+    expect(d.height).toBeCloseTo(4, 6);
   });
 });
