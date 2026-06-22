@@ -77,7 +77,7 @@ export function CalibrateScene(props: Props) {
         position={[0, 0.012, 0]}
         args={[40, 40]}
         cellColor="#a7adb7"
-        sectionColor="#cbd0d8"
+        sectionColor="#a7adb7"
         fadeDistance={35}
         infiniteGrid
       />

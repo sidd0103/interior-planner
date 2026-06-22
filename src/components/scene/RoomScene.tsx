@@ -100,7 +100,7 @@ export function RoomScene({ items, onTransform, children, showGrid = true, world
           cellColor="#a7adb7"
           sectionSize={1}
           sectionThickness={1.1}
-          sectionColor="#cbd0d8"
+          sectionColor="#a7adb7"
           fadeDistance={26}
           fadeStrength={1.5}
           infiniteGrid
