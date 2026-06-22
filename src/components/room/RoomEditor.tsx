@@ -80,7 +80,11 @@ export function RoomEditor({ projectId, roomId }: Props) {
 
   async function onTransform(id: string, patch: TransformPatch) {
     await repo.updatePlaced(id, patch);
-    mutate();
+    // Optimistically apply the new transform to the cache without revalidating,
+    // so the mesh stays put instead of briefly snapping back to its old pose.
+    mutate((prev) => prev?.map((p) => (p.id === id ? { ...p, ...patch } : p)), {
+      revalidate: false,
+    });
   }
 
   async function onDelete() {

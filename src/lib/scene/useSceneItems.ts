@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import * as repo from "@/lib/storage/repo";
 import { getAssetUrl, revokeAssetUrl } from "@/lib/storage/blobStore";
@@ -29,12 +29,20 @@ export function useSceneItems(roomId: string) {
     });
   }, [placed]);
 
-  // Resolve GLB object URLs for assets that have a generated mesh.
+  // Resolve GLB object URLs for assets that have a generated mesh. Keyed on the
+  // *set* of GLB ids (not the assets object) so re-fetching assets after a move
+  // or a dims/price edit doesn't revoke + recreate the URL — which would reload
+  // the mesh and make it flash.
+  const glbIds = useMemo(
+    () =>
+      [
+        ...new Set(Object.values(assets).map((a) => a.glbAssetId).filter(Boolean) as string[]),
+      ].sort(),
+    [assets],
+  );
+  const glbKey = glbIds.join(",");
   const [urls, setUrls] = useState<Record<string, string>>({});
   useEffect(() => {
-    const glbIds = [
-      ...new Set(Object.values(assets).map((a) => a.glbAssetId).filter(Boolean) as string[]),
-    ];
     let active = true;
     const created: string[] = [];
     Promise.all(glbIds.map(async (id) => [id, await getAssetUrl(id)] as const)).then((pairs) => {
@@ -54,7 +62,9 @@ export function useSceneItems(roomId: string) {
       active = false;
       created.forEach(revokeAssetUrl);
     };
-  }, [assets]);
+    // glbIds is derived from glbKey; re-run only when the id set changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [glbKey]);
 
   const items: SceneItem[] = (placed ?? []).map((p) => {
     const asset = assets[p.furnitureAssetId];
