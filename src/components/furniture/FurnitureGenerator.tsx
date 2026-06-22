@@ -74,8 +74,20 @@ export function FurnitureGenerator({ projectId, onCreated }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageUrl }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Generation request failed");
+      // The response isn't always JSON (e.g. a framework 500 returns plain
+      // "Internal Server Error"), so read text and parse defensively.
+      const raw = await res.text();
+      let json: { taskId?: string; error?: string } = {};
+      try {
+        json = raw ? JSON.parse(raw) : {};
+      } catch {
+        /* non-JSON error page */
+      }
+      if (!res.ok || !json.taskId) {
+        throw new Error(
+          json.error || `Generation failed (${res.status})${raw && !json.error ? `: ${raw.slice(0, 160)}` : ""}`,
+        );
+      }
       await repo.updateJob(job.id, { externalId: json.taskId, status: "processing" });
       onCreated();
       reset();
