@@ -13,6 +13,27 @@ interface Props {
   onDelete?: () => void;
 }
 
+/** A small keycap shown inline on a button to advertise its shortcut. */
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd
+      style={{
+        marginLeft: 6,
+        padding: "1px 5px",
+        fontSize: 10,
+        fontFamily: "ui-monospace, monospace",
+        lineHeight: 1.4,
+        color: "var(--muted, #9aa3b2)",
+        background: "rgba(255,255,255,0.08)",
+        border: "1px solid rgba(255,255,255,0.18)",
+        borderRadius: 4,
+      }}
+    >
+      {children}
+    </kbd>
+  );
+}
+
 /** Floating overlay toolbar for gizmo mode + selection actions. */
 export function Toolbar({ onDelete }: Props) {
   const { mode, setMode, selectedId, select } = useEditor();
@@ -52,18 +73,21 @@ export function Toolbar({ onDelete }: Props) {
           onClick={() => setMode(m.key)}
           className={mode === m.key ? "primary" : ""}
           title={`${m.label} (${m.shortcut})`}
-          style={{ padding: "6px 12px" }}
+          style={{ padding: "6px 10px" }}
         >
           {m.label}
+          <Kbd>{m.shortcut}</Kbd>
         </button>
       ))}
       <div style={{ width: 1, height: 22, background: "var(--border)", margin: "0 2px" }} />
       <button onClick={() => select(null)} disabled={!selectedId} title="Deselect (Esc)">
         Deselect
+        <Kbd>Esc</Kbd>
       </button>
       {onDelete && (
-        <button className="danger" onClick={onDelete} disabled={!selectedId} title="Delete (Del)">
-          Delete
+        <button className="danger" onClick={onDelete} disabled={!selectedId} title="Remove from room (Del)">
+          Remove
+          <Kbd>Del</Kbd>
         </button>
       )}
     </div>
