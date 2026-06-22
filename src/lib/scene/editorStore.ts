@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-export type TransformMode = "translate" | "rotate" | "scale";
+export type TransformMode = "translate" | "rotate";
 
 interface EditorState {
   /** id of the currently selected PlacedFurniture, or null. */

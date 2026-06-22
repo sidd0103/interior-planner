@@ -90,6 +90,9 @@ export function RoomEditor({ projectId, roomId }: Props) {
     mutate();
   }
 
+  // Asset behind the selected placed instance (for the properties panel).
+  const selectedAssetId = placed?.find((p) => p.id === selectedId)?.furnitureAssetId ?? null;
+
   async function placeAsset(furnitureAssetId: string) {
     await repo.placeFurniture(roomId, furnitureAssetId, { position: [0, 0, 0] });
     mutate();
@@ -159,6 +162,10 @@ export function RoomEditor({ projectId, roomId }: Props) {
           roomName={room?.name ?? "Room"}
           placedCount={placed?.length ?? 0}
           onPlace={placeAsset}
+          selectedAssetId={selectedAssetId}
+          onUnplace={onDelete}
+          onDeselect={() => select(null)}
+          onAssetChange={mutate}
         />
       )}
     </div>

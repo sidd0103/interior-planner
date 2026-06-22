@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import { SceneLabel } from "@/components/measure/BoundsBox";
+import { usePrefs } from "@/lib/scene/prefs";
+import { formatLength } from "@/lib/geometry/units";
 import type { SceneItem } from "@/lib/scene/types";
 
 /**
@@ -80,12 +83,15 @@ interface Props {
 
 export function FurnitureItem({ item, selected, overlapping, onSelect, registerObject }: Props) {
   const ref = useRef<THREE.Group>(null);
+  const unitSystem = usePrefs((s) => s.unitSystem);
 
   useEffect(() => {
     registerObject(item.id, ref.current);
     return () => registerObject(item.id, null);
     // Re-register if the id changes.
   }, [item.id, registerObject]);
+
+  const { width: w, height: h, depth: d } = item.realDims;
 
   return (
     <group
@@ -101,14 +107,8 @@ export function FurnitureItem({ item, selected, overlapping, onSelect, registerO
       <FurnitureVisual item={item} />
       {(selected || overlapping) && (
         // Wireframe bounds: blue when selected, red when intersecting another item.
-        <mesh position={[0, item.realDims.height / 2, 0]}>
-          <boxGeometry
-            args={[
-              item.realDims.width * 1.02,
-              item.realDims.height * 1.02,
-              item.realDims.depth * 1.02,
-            ]}
-          />
+        <mesh position={[0, h / 2, 0]}>
+          <boxGeometry args={[w * 1.02, h * 1.02, d * 1.02]} />
           <meshBasicMaterial
             color={overlapping ? "#e2585b" : "#5b9dff"}
             wireframe
@@ -116,6 +116,14 @@ export function FurnitureItem({ item, selected, overlapping, onSelect, registerO
             opacity={0.5}
           />
         </mesh>
+      )}
+      {selected && (
+        // Dimension labels (W along X, D along Z, H up) in the selected unit.
+        <>
+          <SceneLabel position={[0, 0, d / 2 + 0.02]} text={formatLength(w, unitSystem)} />
+          <SceneLabel position={[w / 2 + 0.02, 0, 0]} text={formatLength(d, unitSystem)} />
+          <SceneLabel position={[w / 2 + 0.02, h / 2, d / 2 + 0.02]} text={formatLength(h, unitSystem)} />
+        </>
       )}
     </group>
   );

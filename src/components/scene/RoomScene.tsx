@@ -128,7 +128,10 @@ export function RoomScene({ items, onTransform, children, showGrid = true, world
         <TransformControls
           object={selectedObj}
           mode={mode}
-          showY={mode !== "translate"}
+          // Move: slide on the floor (X/Z). Rotate: yaw only (Y). Never scale.
+          showX={mode === "translate"}
+          showZ={mode === "translate"}
+          showY={mode === "rotate"}
           onMouseDown={() => setDragging(true)}
           onMouseUp={() => {
             setDragging(false);

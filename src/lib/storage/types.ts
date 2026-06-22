@@ -136,6 +136,10 @@ export interface FurnitureAsset {
   jobId?: Id;
   /** Real-world bounding dimensions in meters, used to scale the raw mesh. */
   realDims: RoomDimensions;
+  /** Price (whole currency units, e.g. dollars). Defaults to 0. */
+  price?: number;
+  /** Product/source URL for the item. */
+  webLink?: string;
   createdAt: number;
   updatedAt: number;
 }

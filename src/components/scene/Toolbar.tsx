@@ -6,7 +6,6 @@ import { useEditor, type TransformMode } from "@/lib/scene/editorStore";
 const MODES: { key: TransformMode; label: string; shortcut: string }[] = [
   { key: "translate", label: "Move", shortcut: "G" },
   { key: "rotate", label: "Rotate", shortcut: "R" },
-  { key: "scale", label: "Scale", shortcut: "S" },
 ];
 
 interface Props {
@@ -25,7 +24,6 @@ export function Toolbar({ onDelete }: Props) {
       if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
       if (e.key === "g" || e.key === "G") setMode("translate");
       else if (e.key === "r" || e.key === "R") setMode("rotate");
-      else if (e.key === "s" || e.key === "S") setMode("scale");
       else if (e.key === "Escape") select(null);
       else if ((e.key === "Delete" || e.key === "Backspace") && selectedId) onDelete?.();
     }

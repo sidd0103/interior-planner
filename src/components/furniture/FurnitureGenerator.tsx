@@ -31,6 +31,7 @@ export function FurnitureGenerator({ projectId, onCreated }: Props) {
   const [w, setW] = useState(def.w);
   const [d, setD] = useState(def.d);
   const [h, setH] = useState(def.h);
+  const [price, setPrice] = useState("0");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string>();
 
@@ -40,6 +41,7 @@ export function FurnitureGenerator({ projectId, onCreated }: Props) {
     setW(def.w);
     setD(def.d);
     setH(def.h);
+    setPrice("0");
     setErr(undefined);
   }
 
@@ -59,6 +61,7 @@ export function FurnitureGenerator({ projectId, onCreated }: Props) {
       name: name.trim(),
       sourceImageAssetId,
       realDims,
+      price: +price || 0,
     });
     const job = await repo.createJob("meshy");
     await repo.updateFurniture(asset.id, { jobId: job.id });
@@ -112,6 +115,14 @@ export function FurnitureGenerator({ projectId, onCreated }: Props) {
         <input style={{ width: 60 }} value={w} onChange={(e) => setW(e.target.value)} inputMode="numeric" />
         <input style={{ width: 60 }} value={d} onChange={(e) => setD(e.target.value)} inputMode="numeric" />
         <input style={{ width: 60 }} value={h} onChange={(e) => setH(e.target.value)} inputMode="numeric" />
+      </div>
+
+      <div className="row" style={{ gap: 6, alignItems: "center" }}>
+        <label className="muted" style={{ fontSize: 12, width: 70 }}>
+          Price
+        </label>
+        <span className="muted">$</span>
+        <input style={{ width: 90 }} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" />
       </div>
 
       {err && (
