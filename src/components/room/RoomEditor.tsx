@@ -148,7 +148,10 @@ export function RoomEditor({ projectId, roomId }: Props) {
             {calibrating && <CalibrateTools calib={calib} placeRef={placeRef} />}
           </RoomScene>
         </SceneCanvas>
-        <div className="muted" style={{ position: "absolute", bottom: 12, left: 12, fontSize: 12 }}>
+        <div
+          className="muted"
+          style={{ position: "absolute", bottom: 12, left: 12, fontSize: 12, zIndex: 10 }}
+        >
           {calibrating
             ? `WASD to walk · drag to look · ${calib.tool === "measure" ? "click to place tape points" : "drag the box faces"}`
             : `${items.length} item(s) · WASD to walk · drag to look · scroll to move · drag the gizmo to move furniture`}

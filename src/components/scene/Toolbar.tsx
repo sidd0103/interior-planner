@@ -59,6 +59,7 @@ export function Toolbar({ onDelete }: Props) {
         position: "absolute",
         top: 12,
         left: 12,
+        zIndex: 10, // above the WebGL canvas, which otherwise paints over it
         padding: 6,
         background: "rgba(23,26,33,0.9)",
         border: "1px solid var(--border)",
