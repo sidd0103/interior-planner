@@ -15,6 +15,8 @@ export interface SceneItem {
   glbUrl?: string;
   /** Real-world bounding dims (meters) the raw mesh is normalized to. */
   realDims: RoomDimensions;
+  /** Asset price (currency units), for the cost badge. */
+  price?: number;
   position: Vec3;
   /** Euler XYZ radians. */
   rotation: Vec3;

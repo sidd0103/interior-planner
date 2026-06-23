@@ -37,6 +37,7 @@ export function useSceneItems(roomId: string) {
       label: asset?.name ?? "Furniture",
       glbUrl: assetSrc(asset?.glbAssetId),
       realDims: asset?.realDims ?? FALLBACK_DIMS,
+      price: asset?.price,
       position: p.position,
       rotation: p.rotation,
       scale: p.scale,

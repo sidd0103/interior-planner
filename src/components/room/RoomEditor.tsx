@@ -132,6 +132,7 @@ export function RoomEditor({ projectId, roomId }: Props) {
               <FurnitureSection
                 projectId={projectId}
                 placedCount={placed?.length ?? 0}
+                totalCost={items.reduce((s, it) => s + (it.price ?? 0), 0)}
                 onPlace={placeAsset}
                 selectedAssetId={selectedAssetId}
                 onUnplace={onDelete}

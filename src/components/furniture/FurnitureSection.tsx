@@ -5,6 +5,7 @@ import useSWR from "swr";
 import * as repo from "@/lib/storage/repo";
 import { usePrefs } from "@/lib/scene/prefs";
 import {
+  formatPrice,
   metersToSmall,
   smallToMeters,
   smallUnitLabel,
@@ -24,6 +25,8 @@ function fmt(n: number): string {
 interface Props {
   projectId: string;
   placedCount: number;
+  /** Total cost of furniture placed in this room. */
+  totalCost?: number;
   onPlace: (furnitureAssetId: string) => void;
   /** Asset id of the currently-selected placed item, if any. */
   selectedAssetId?: string | null;
@@ -42,6 +45,7 @@ interface Props {
 export function FurnitureSection({
   projectId,
   placedCount,
+  totalCost = 0,
   onPlace,
   selectedAssetId,
   onUnplace,
@@ -86,7 +90,13 @@ export function FurnitureSection({
   return (
     <>
       <p className="muted" style={{ fontSize: 12, margin: "0 0 2px" }}>
-        {placedCount} placed in this room
+        {placedCount} placed
+        {totalCost > 0 && (
+          <>
+            {" · "}
+            <span style={{ color: "var(--ok)", fontWeight: 600 }}>{formatPrice(totalCost)}</span>
+          </>
+        )}
       </p>
 
       {focused && (

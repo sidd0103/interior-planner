@@ -33,6 +33,11 @@ export function feetInchesToMeters(feet: number, inches: number): number {
   return (feet * 12 + inches) * 0.0254;
 }
 
+/** Format a price (currency units) as e.g. `$1,250`. */
+export function formatPrice(n: number): string {
+  return "$" + Math.round(n).toLocaleString();
+}
+
 /** The small-object unit for the system: centimeters (metric) or inches (imperial). */
 export function smallUnitLabel(sys: UnitSystem): "cm" | "in" {
   return sys === "metric" ? "cm" : "in";

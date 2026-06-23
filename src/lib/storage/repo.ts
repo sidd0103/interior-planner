@@ -162,6 +162,20 @@ export async function listRooms(projectId: Id): Promise<Room[]> {
   return rows.map((r) => clean<Room>(r));
 }
 
+/** Total furniture cost per room (sum of placed assets' prices). roomId → cost. */
+export async function listRoomCosts(projectId: Id): Promise<Record<string, number>> {
+  if (!(await canRead(projectId))) return {};
+  const rows = await getDb()
+    .select({ roomId: placed.roomId, price: furniture.price })
+    .from(placed)
+    .innerJoin(rooms, eq(placed.roomId, rooms.id))
+    .innerJoin(furniture, eq(placed.furnitureAssetId, furniture.id))
+    .where(eq(rooms.projectId, projectId));
+  const out: Record<string, number> = {};
+  for (const r of rows) out[r.roomId] = (out[r.roomId] ?? 0) + (r.price ?? 0);
+  return out;
+}
+
 export async function getRoom(id: Id): Promise<Room | undefined> {
   if (!(await canRead(await projectIdOfRoom(id)))) return undefined;
   const rows = await getDb().select().from(rooms).where(eq(rooms.id, id)).limit(1);

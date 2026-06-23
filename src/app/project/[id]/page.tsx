@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import useSWR from "swr";
 import * as repo from "@/lib/storage/repo";
+import { formatPrice } from "@/lib/geometry/units";
 import { TrashIcon } from "@/components/ui/icons";
 
 export default function ProjectPage() {
@@ -16,6 +17,7 @@ export default function ProjectPage() {
   const { data: rooms, mutate: mutateRooms } = useSWR(["rooms", projectId], () =>
     repo.listRooms(projectId),
   );
+  const { data: costs } = useSWR(["roomCosts", projectId], () => repo.listRoomCosts(projectId));
   const { data: furniture } = useSWR(["furniture", projectId], () =>
     repo.listFurniture(projectId),
   );
@@ -116,6 +118,11 @@ export default function ProjectPage() {
               >
                 <span style={{ fontWeight: 600 }}>{r.name}</span>
                 <span className="row">
+                  {costs?.[r.id] ? (
+                    <span className="badge" style={{ color: "var(--ok)", fontWeight: 600 }}>
+                      {formatPrice(costs[r.id])}
+                    </span>
+                  ) : null}
                   {r.splatAssetId ? (
                     <span className="badge ok">captured</span>
                   ) : (
