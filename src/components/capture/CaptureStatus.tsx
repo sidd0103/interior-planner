@@ -4,8 +4,6 @@ import { useEffect, useRef } from "react";
 import useSWR from "swr";
 import { useJob } from "@/lib/jobs/useJob";
 import * as repo from "@/lib/storage/repo";
-import { putAsset } from "@/lib/storage/blobStore";
-import { ROT_X180 } from "@/lib/geometry/vec3";
 import type { Room } from "@/lib/storage/types";
 
 interface StatusResp {
@@ -47,27 +45,20 @@ export function CaptureStatus({ room, onUpdate }: { room: Room; onUpdate: () => 
       finalizing.current = true;
       (async () => {
         try {
-          const res = await fetch(`/api/worldlabs/download/${operationId}`);
+          // Server-side: download the .spz, store it in Blob, attach to the room
+          // (+ initial metric transform). 7MB never round-trips the browser.
+          const res = await fetch(`/api/worldlabs/finalize/${operationId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              roomId: room.id,
+              jobId: room.captureJobId,
+              metricScaleFactor: status.metricScaleFactor,
+              groundPlaneOffset: status.groundPlaneOffset,
+              hasTransform: !!room.metricTransform,
+            }),
+          });
           if (!res.ok) throw new Error(await res.text());
-          const blob = await res.blob();
-          const splatAssetId = await putAsset(blob);
-
-          // World Labs gives us the metric scale directly — seed an initial
-          // metric transform so the room is correctly scaled out of the box.
-          // (The Measure-screenshot reconciler can still refine it.)
-          const patch: Partial<Room> = { splatAssetId, splatFormat: "spz" };
-          if (!room.metricTransform && status.metricScaleFactor) {
-            patch.metricTransform = {
-              scale: status.metricScaleFactor,
-              rotation: ROT_X180,
-              translation: [0, status.groundPlaneOffset ?? 0, 0],
-              rmsResidualMeters: 0,
-              solvedAt: Date.now(),
-            };
-          }
-          await repo.updateRoom(room.id, patch);
-          if (room.captureJobId)
-            await repo.updateJob(room.captureJobId, { status: "done", resultAssetId: splatAssetId });
           onUpdate();
         } catch (e) {
           if (room.captureJobId)

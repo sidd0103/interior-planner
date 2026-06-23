@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import useSWR from "swr";
 import { useJob } from "@/lib/jobs/useJob";
 import * as repo from "@/lib/storage/repo";
-import { putAsset } from "@/lib/storage/blobStore";
 import type { FurnitureAsset } from "@/lib/storage/types";
 
 interface StatusResp {
@@ -50,13 +49,13 @@ export function GenerationStatus({
       finalizing.current = true;
       (async () => {
         try {
-          const res = await fetch(`/api/meshy/download/${taskId}`);
+          // Server-side: download the GLB, store it in Blob, attach to the asset.
+          const res = await fetch(`/api/meshy/finalize/${taskId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ furnitureId: furniture.id, jobId: furniture.jobId }),
+          });
           if (!res.ok) throw new Error(await res.text());
-          const blob = await res.blob();
-          const glbAssetId = await putAsset(blob);
-          await repo.updateFurniture(furniture.id, { glbAssetId });
-          if (furniture.jobId)
-            await repo.updateJob(furniture.jobId, { status: "done", resultAssetId: glbAssetId });
           onUpdate();
         } catch (e) {
           if (furniture.jobId)
