@@ -31,19 +31,12 @@ export function CalibratePanel({ calib, onDone }: Props) {
 
   return (
     <aside
-      style={{
-        width: 320,
-        height: "100vh",
-        borderRight: "1px solid var(--border)",
-        background: "var(--panel)",
-        padding: 16,
-        overflowY: "auto",
-      }}
-      className="col"
+      className="sidebar col"
+      style={{ width: 304, padding: 16, gap: 12, overflowY: "auto" }}
     >
       <div className="row" style={{ justifyContent: "space-between" }}>
-        <h2 style={{ margin: 0, fontSize: 18 }}>Calibrate room</h2>
-        <button className="primary" onClick={onDone}>
+        <h2 style={{ margin: 0, fontSize: 16 }}>Calibrate room</h2>
+        <button className="primary btn-sm" onClick={onDone}>
           Done
         </button>
       </div>

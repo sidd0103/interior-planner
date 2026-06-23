@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import Link from "next/link";
 import * as repo from "@/lib/storage/repo";
 import { usePrefs } from "@/lib/scene/prefs";
 import {
@@ -11,6 +10,7 @@ import {
   smallUnitLabel,
   type UnitSystem,
 } from "@/lib/geometry/units";
+import { CheckIcon, CloseIcon } from "@/components/ui/icons";
 import type { FurnitureAsset } from "@/lib/storage/types";
 import { FurnitureGenerator } from "./FurnitureGenerator";
 import { GenerationStatus } from "./GenerationStatus";
@@ -23,7 +23,6 @@ function fmt(n: number): string {
 
 interface Props {
   projectId: string;
-  roomName: string;
   placedCount: number;
   onPlace: (furnitureAssetId: string) => void;
   /** Asset id of the currently-selected placed item, if any. */
@@ -36,14 +35,12 @@ interface Props {
 }
 
 /**
- * Right-hand panel for the room editor. A focused asset — either the placed item
- * selected in 3D, or a library item clicked here — shows an editable properties
- * card (bounding-box dimensions, price, link). Otherwise: generate from a photo
- * and place any saved asset.
+ * "Furniture" section body. A focused asset — the placed item selected in 3D or
+ * a library item clicked here — shows an editable properties card; otherwise you
+ * generate from a photo and place any saved asset.
  */
-export function FurniturePanel({
+export function FurnitureSection({
   projectId,
-  roomName,
   placedCount,
   onPlace,
   selectedAssetId,
@@ -59,7 +56,6 @@ export function FurniturePanel({
 
   // A library item clicked here (for editing) when nothing is selected in 3D.
   const [editingId, setEditingId] = useState<string | null>(null);
-  // A 3D selection always wins; otherwise the clicked library item is focused.
   const focusedId = selectedAssetId ?? editingId;
   const focused = focusedId ? furniture?.find((f) => f.id === focusedId) : undefined;
   const isPlacedFocus = !!selectedAssetId && focusedId === selectedAssetId;
@@ -78,7 +74,7 @@ export function FurniturePanel({
   }
 
   function editFromLibrary(id: string) {
-    onDeselect?.(); // move focus off any 3D selection
+    onDeselect?.();
     setEditingId(id);
   }
 
@@ -88,26 +84,10 @@ export function FurniturePanel({
   }
 
   return (
-    <aside
-      style={{
-        width: 340,
-        height: "100vh",
-        borderLeft: "1px solid var(--border)",
-        background: "var(--panel)",
-        padding: 16,
-        overflowY: "auto",
-      }}
-      className="col"
-    >
-      <div>
-        <Link href={`/project/${projectId}`} className="muted" style={{ fontSize: 13 }}>
-          ← {roomName}
-        </Link>
-        <h2 style={{ margin: "6px 0 0", fontSize: 18 }}>Furniture</h2>
-        <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-          {placedCount} placed in this room
-        </p>
-      </div>
+    <>
+      <p className="muted" style={{ fontSize: 12, margin: "0 0 2px" }}>
+        {placedCount} placed in this room
+      </p>
 
       {focused && (
         <FurnitureProperties
@@ -123,9 +103,9 @@ export function FurniturePanel({
 
       <FurnitureGenerator projectId={projectId} onCreated={mutate} />
 
-      <div className="col" style={{ marginTop: 8 }}>
-        <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>
-          Library ({furniture?.length ?? 0}) — click to edit
+      <div className="col" style={{ marginTop: 4, gap: 8 }}>
+        <span className="muted" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.03em" }}>
+          LIBRARY ({furniture?.length ?? 0})
         </span>
         {furniture?.length === 0 && (
           <p className="muted" style={{ fontSize: 13 }}>
@@ -139,12 +119,13 @@ export function FurniturePanel({
             onClick={() => editFromLibrary(f.id)}
             style={{
               gap: 8,
+              padding: 12,
               cursor: "pointer",
-              borderColor: focusedId === f.id ? "#3a6ea5" : undefined,
+              borderColor: focusedId === f.id ? "var(--accent)" : undefined,
             }}
           >
             <div className="row" style={{ justifyContent: "space-between" }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>{f.name}</span>
+              <span style={{ fontWeight: 600, fontSize: 13 }}>{f.name}</span>
               <GenerationStatus furniture={f} onUpdate={mutate} />
             </div>
             <span className="muted" style={{ fontSize: 11 }}>
@@ -155,22 +136,20 @@ export function FurniturePanel({
             </span>
             <div className="row" style={{ justifyContent: "space-between" }}>
               <button
-                className="primary"
+                className="primary btn-sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   onPlace(f.id);
                 }}
-                style={{ padding: "6px 12px" }}
               >
                 Place in room
               </button>
               <button
-                className="danger"
+                className="danger btn-sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   remove(f.id);
                 }}
-                style={{ padding: "6px 10px" }}
               >
                 Delete
               </button>
@@ -178,7 +157,7 @@ export function FurniturePanel({
           </div>
         ))}
       </div>
-    </aside>
+    </>
   );
 }
 
@@ -196,8 +175,7 @@ interface PropsEditor {
 /**
  * Editable properties for the focused asset: bounding-box dimensions, price, and
  * link. Every field is typed then applied with ✓ (a null draft follows the saved
- * value, so it stays in sync). The bottom action removes it from the room (if
- * placed) or places it.
+ * value). The bottom action removes it from the room (if placed) or places it.
  */
 function FurnitureProperties({
   asset,
@@ -218,8 +196,6 @@ function FurnitureProperties({
   const [h, setH] = useState<string | null>(null);
   const dimsDirty = w !== null || d !== null || h !== null;
 
-  // Editing one dimension scales all of them proportionally (the mesh only
-  // ever scales uniformly, so the box stays wrapped tight).
   const setAxis = (axis: "w" | "d" | "h", val: string) => {
     const base = axis === "w" ? dW : axis === "d" ? dD : dH;
     const num = parseFloat(val);
@@ -262,49 +238,49 @@ function FurnitureProperties({
   };
 
   return (
-    <div className="card col" style={{ gap: 8, borderColor: "#3a6ea5" }}>
+    <div className="card col" style={{ gap: 8, padding: 12, borderColor: "var(--accent)" }}>
       <div className="row" style={{ justifyContent: "space-between" }}>
-        <strong style={{ fontSize: 14 }}>{asset.name}</strong>
-        <button onClick={onClose} title="Close" style={{ padding: "4px 9px" }}>
-          ✕
+        <strong style={{ fontSize: 13 }}>{asset.name}</strong>
+        <button className="icon-btn" onClick={onClose} title="Close">
+          <CloseIcon size={14} />
         </button>
       </div>
 
-      <label className="muted" style={{ fontSize: 12 }}>
+      <label className="muted" style={{ fontSize: 11 }}>
         Size — W×D×H ({unit}) · scales proportionally
       </label>
-      <div className="row" style={{ gap: 6, alignItems: "center" }}>
-        <input style={{ width: 50 }} inputMode="decimal" value={w ?? fmt(dW)} onChange={(e) => setAxis("w", e.target.value)} />
-        <input style={{ width: 50 }} inputMode="decimal" value={d ?? fmt(dD)} onChange={(e) => setAxis("d", e.target.value)} />
-        <input style={{ width: 50 }} inputMode="decimal" value={h ?? fmt(dH)} onChange={(e) => setAxis("h", e.target.value)} />
-        <button className={dimsDirty ? "primary" : ""} disabled={!dimsDirty} onClick={applyDims} title="Apply size" style={{ padding: "6px 10px", marginLeft: "auto" }}>
-          ✓
+      <div className="row" style={{ gap: 6 }}>
+        <input style={{ width: 48 }} inputMode="decimal" value={w ?? fmt(dW)} onChange={(e) => setAxis("w", e.target.value)} />
+        <input style={{ width: 48 }} inputMode="decimal" value={d ?? fmt(dD)} onChange={(e) => setAxis("d", e.target.value)} />
+        <input style={{ width: 48 }} inputMode="decimal" value={h ?? fmt(dH)} onChange={(e) => setAxis("h", e.target.value)} />
+        <button className={`btn-sm ${dimsDirty ? "primary" : ""}`} disabled={!dimsDirty} onClick={applyDims} title="Apply size" style={{ marginLeft: "auto" }}>
+          <CheckIcon size={14} />
         </button>
       </div>
 
-      <label className="muted" style={{ fontSize: 12 }}>
+      <label className="muted" style={{ fontSize: 11 }}>
         Price
       </label>
-      <div className="row" style={{ gap: 6, alignItems: "center" }}>
+      <div className="row" style={{ gap: 6 }}>
         <span className="muted">$</span>
         <input style={{ width: 90 }} inputMode="decimal" value={price ?? String(asset.price ?? 0)} onChange={(e) => setPrice(e.target.value)} />
-        <button className={priceDirty ? "primary" : ""} disabled={!priceDirty} onClick={applyPrice} title="Apply price" style={{ padding: "6px 10px", marginLeft: "auto" }}>
-          ✓
+        <button className={`btn-sm ${priceDirty ? "primary" : ""}`} disabled={!priceDirty} onClick={applyPrice} title="Apply price" style={{ marginLeft: "auto" }}>
+          <CheckIcon size={14} />
         </button>
       </div>
 
-      <label className="muted" style={{ fontSize: 12 }}>
+      <label className="muted" style={{ fontSize: 11 }}>
         Web link
       </label>
-      <div className="row" style={{ gap: 6, alignItems: "center" }}>
+      <div className="row" style={{ gap: 6 }}>
         <input
           style={{ flex: 1, minWidth: 0 }}
           placeholder="https://…"
           value={link ?? asset.webLink ?? ""}
           onChange={(e) => setLink(e.target.value)}
         />
-        <button className={linkDirty ? "primary" : ""} disabled={!linkDirty} onClick={applyLink} title="Apply link" style={{ padding: "6px 10px" }}>
-          ✓
+        <button className={`btn-sm ${linkDirty ? "primary" : ""}`} disabled={!linkDirty} onClick={applyLink} title="Apply link">
+          <CheckIcon size={14} />
         </button>
       </div>
       {asset.webLink && !linkDirty && (
@@ -312,7 +288,7 @@ function FurnitureProperties({
           href={asset.webLink}
           target="_blank"
           rel="noreferrer"
-          style={{ fontSize: 12, color: "#7fb0ff", wordBreak: "break-all" }}
+          style={{ fontSize: 12, color: "var(--accent-hover)", wordBreak: "break-all" }}
         >
           {asset.webLink}
         </a>

@@ -1,15 +1,31 @@
 :root {
-  --bg: #0e1014;
-  --panel: #171a21;
-  --panel-2: #1f232c;
-  --border: #2b3038;
-  --text: #e6e8ec;
-  --muted: #9aa1ac;
-  --accent: #5b9dff;
-  --accent-2: #3a7bd5;
-  --danger: #e2585b;
-  --ok: #4ec98a;
-  --radius: 10px;
+  /* Surfaces — Geist/Vercel dark */
+  --bg: #0a0a0a;
+  --panel: #111113;
+  --panel-2: #1a1a1d;
+  --elevated: #1f1f23;
+  --border: #2a2a2e;
+  --border-strong: #3a3a40;
+
+  /* Text */
+  --text: #ededed;
+  --muted: #8b8b92;
+
+  /* Accents */
+  --accent: #0070f3;
+  --accent-hover: #3291ff;
+  --danger: #e5484d;
+  --danger-border: #5a2a2c;
+  --ok: #46c08a;
+  --ok-border: #224b39;
+
+  /* Scale */
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.5);
+  --ring: 0 0 0 3px rgba(0, 112, 243, 0.35);
 }
 
 * {
@@ -24,70 +40,154 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+h1 {
+  font-size: 28px;
+}
+h2 {
+  font-size: 18px;
 }
 
 a {
-  color: var(--accent);
+  color: var(--text);
   text-decoration: none;
+  transition: color 0.12s;
 }
 a:hover {
-  text-decoration: underline;
+  color: var(--accent-hover);
+}
+a.muted:hover {
+  color: var(--text);
 }
 
+/* --- Buttons --- */
 button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text);
   background: var(--panel-2);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 14px;
+  border-radius: var(--radius);
+  padding: 0 12px;
+  height: 32px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
 }
 button:hover:not(:disabled) {
-  background: #262b35;
-  border-color: #3a414d;
+  background: var(--elevated);
+  border-color: var(--border-strong);
+}
+button:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
 }
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 button.primary {
-  background: var(--accent-2);
-  border-color: var(--accent-2);
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
 button.primary:hover:not(:disabled) {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 button.danger {
-  color: var(--danger);
-  border-color: #4a2c2e;
+  color: #ff8a8c;
+  border-color: var(--danger-border);
+  background: transparent;
+}
+button.danger:hover:not(:disabled) {
+  background: rgba(229, 72, 77, 0.12);
+  border-color: var(--danger);
+}
+button.btn-sm {
+  height: 28px;
+  font-size: 12px;
+  padding: 0 9px;
+}
+button.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+button.ghost:hover:not(:disabled) {
+  background: var(--panel-2);
+  border-color: var(--border);
 }
 
-input,
-select {
-  font-family: inherit;
-  font-size: 14px;
+/* Square icon button */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.icon-btn:hover:not(:disabled) {
+  background: var(--panel-2);
   color: var(--text);
-  background: var(--panel);
+  border-color: var(--border);
+}
+.icon-btn.active {
+  background: rgba(0, 112, 243, 0.14);
+  color: var(--accent-hover);
+}
+
+/* --- Inputs --- */
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  transition: border-color 0.12s, box-shadow 0.12s;
 }
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+input::placeholder {
+  color: var(--muted);
 }
 
+/* --- Surfaces --- */
 .card {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   padding: 16px;
 }
 
@@ -100,29 +200,107 @@ select:focus {
   align-items: center;
   gap: 10px;
 }
-
 .col {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
+/* --- Badges --- */
 .badge {
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
   padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid var(--border);
   color: var(--muted);
+  background: var(--panel-2);
 }
 .badge.ok {
   color: var(--ok);
-  border-color: #234b39;
+  border-color: var(--ok-border);
+  background: rgba(70, 192, 138, 0.08);
 }
 .badge.err {
-  color: var(--danger);
-  border-color: #4a2c2e;
+  color: #ff8a8c;
+  border-color: var(--danger-border);
+  background: rgba(229, 72, 77, 0.08);
 }
 .badge.busy {
-  color: var(--accent);
-  border-color: #243a5c;
+  color: var(--accent-hover);
+  border-color: #1e3a63;
+  background: rgba(0, 112, 243, 0.08);
+}
+
+/* --- Keycap (toolbar shortcuts) --- */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  padding: 1px 5px;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--muted);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+/* --- Editor sidebar + sections --- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100vh;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+.section {
+  border-bottom: 1px solid var(--border);
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  height: auto;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.section-head:hover:not(:disabled) {
+  background: var(--panel-2);
+  border-color: transparent;
+}
+.section-body {
+  padding: 4px 14px 14px;
+}
+
+/* Scrollbars (subtle, Vercel-like) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+  background-clip: padding-box;
 }

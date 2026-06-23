@@ -9,6 +9,9 @@ interface PrefsState {
   /** Display + input unit system, shared across the editor and calibrator. */
   unitSystem: UnitSystem;
   setUnitSystem: (u: UnitSystem) => void;
+  /** Editor sidebar minimized to the icon rail. */
+  sidebarCollapsed: boolean;
+  setSidebarCollapsed: (c: boolean) => void;
 }
 
 /** App-wide display preferences, persisted to localStorage. */
@@ -17,6 +20,8 @@ export const usePrefs = create<PrefsState>()(
     (set) => ({
       unitSystem: "imperial",
       setUnitSystem: (unitSystem) => set({ unitSystem }),
+      sidebarCollapsed: false,
+      setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
     }),
     { name: "ip-prefs" },
   ),

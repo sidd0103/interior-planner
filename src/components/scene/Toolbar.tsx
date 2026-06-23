@@ -16,19 +16,7 @@ interface Props {
 /** A small keycap shown inline on a button to advertise its shortcut. */
 function Kbd({ children }: { children: React.ReactNode }) {
   return (
-    <kbd
-      style={{
-        marginLeft: 6,
-        padding: "1px 5px",
-        fontSize: 10,
-        fontFamily: "ui-monospace, monospace",
-        lineHeight: 1.4,
-        color: "var(--muted, #9aa3b2)",
-        background: "rgba(255,255,255,0.08)",
-        border: "1px solid rgba(255,255,255,0.18)",
-        borderRadius: 4,
-      }}
-    >
+    <kbd className="kbd" style={{ marginLeft: 4 }}>
       {children}
     </kbd>
   );
@@ -60,33 +48,33 @@ export function Toolbar({ onDelete }: Props) {
         top: 12,
         left: 12,
         zIndex: 10, // above the WebGL canvas, which otherwise paints over it
-        padding: 6,
-        background: "rgba(23,26,33,0.9)",
+        padding: 5,
+        background: "rgba(17,17,19,0.82)",
         border: "1px solid var(--border)",
         borderRadius: 10,
-        backdropFilter: "blur(6px)",
-        gap: 6,
+        boxShadow: "var(--shadow-lg)",
+        backdropFilter: "blur(10px)",
+        gap: 4,
       }}
     >
       {MODES.map((m) => (
         <button
           key={m.key}
           onClick={() => setMode(m.key)}
-          className={mode === m.key ? "primary" : ""}
+          className={`btn-sm ${mode === m.key ? "primary" : "ghost"}`}
           title={`${m.label} (${m.shortcut})`}
-          style={{ padding: "6px 10px" }}
         >
           {m.label}
           <Kbd>{m.shortcut}</Kbd>
         </button>
       ))}
-      <div style={{ width: 1, height: 22, background: "var(--border)", margin: "0 2px" }} />
-      <button onClick={() => select(null)} disabled={!selectedId} title="Deselect (Esc)">
+      <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
+      <button className="btn-sm ghost" onClick={() => select(null)} disabled={!selectedId} title="Deselect (Esc)">
         Deselect
         <Kbd>Esc</Kbd>
       </button>
       {onDelete && (
-        <button className="danger" onClick={onDelete} disabled={!selectedId} title="Remove from room (Del)">
+        <button className="btn-sm danger" onClick={onDelete} disabled={!selectedId} title="Remove from room (Del)">
           Remove
           <Kbd>Del</Kbd>
         </button>

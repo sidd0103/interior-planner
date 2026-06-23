@@ -7,8 +7,9 @@ import { SceneCanvas } from "@/components/scene/SceneCanvas";
 import { RoomScene } from "@/components/scene/RoomScene";
 import { SplatRoom } from "@/components/scene/SplatRoom";
 import { Toolbar } from "@/components/scene/Toolbar";
-import { FurniturePanel } from "@/components/furniture/FurniturePanel";
-import { RoomToolsPanel } from "./RoomToolsPanel";
+import { EditorSidebar } from "./EditorSidebar";
+import { RoomSection } from "./RoomSection";
+import { FurnitureSection } from "@/components/furniture/FurnitureSection";
 import { CalibratePanel } from "@/components/measure/CalibratePanel";
 import { CalibrateTools } from "@/components/measure/CalibrateTools";
 import { useCalibration } from "@/components/measure/useCalibration";
@@ -111,11 +112,24 @@ export function RoomEditor({ projectId, roomId }: Props) {
         (calibrating ? (
           <CalibratePanel calib={calib} onDone={stopCalibrating} />
         ) : (
-          <RoomToolsPanel
-            projectId={projectId}
-            room={room}
-            onUpdate={mutateRoom}
-            onCalibrate={startCalibrating}
+          <EditorSidebar
+            roomName={room.name}
+            backHref={`/project/${projectId}`}
+            hasSelection={!!selectedId}
+            roomContent={
+              <RoomSection room={room} onUpdate={mutateRoom} onCalibrate={startCalibrating} />
+            }
+            furnitureContent={
+              <FurnitureSection
+                projectId={projectId}
+                placedCount={placed?.length ?? 0}
+                onPlace={placeAsset}
+                selectedAssetId={selectedAssetId}
+                onUnplace={onDelete}
+                onDeselect={() => select(null)}
+                onAssetChange={mutate}
+              />
+            }
           />
         ))}
 
@@ -168,18 +182,6 @@ export function RoomEditor({ projectId, roomId }: Props) {
         <Loader />
       </div>
 
-      {canEdit && !calibrating && (
-        <FurniturePanel
-          projectId={projectId}
-          roomName={room?.name ?? "Room"}
-          placedCount={placed?.length ?? 0}
-          onPlace={placeAsset}
-          selectedAssetId={selectedAssetId}
-          onUnplace={onDelete}
-          onDeselect={() => select(null)}
-          onAssetChange={mutate}
-        />
-      )}
     </div>
   );
 }
