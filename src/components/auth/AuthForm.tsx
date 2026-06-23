@@ -86,6 +86,9 @@ export function AuthForm({ mode }: Props) {
           </>
         )}
       </p>
+      <p className="muted" style={{ fontSize: 13, marginTop: 4, textAlign: "center" }}>
+        or <Link href="/project/demo-apartment">explore the demo</Link> without an account
+      </p>
     </main>
   );
 }

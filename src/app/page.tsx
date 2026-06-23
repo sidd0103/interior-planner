@@ -27,7 +27,8 @@ export default function Dashboard() {
     <main style={{ maxWidth: 760, margin: "0 auto", padding: "48px 24px" }}>
       <h1 style={{ marginBottom: 4 }}>Interior Planner</h1>
       <p className="muted" style={{ marginTop: 0 }}>
-        Capture rooms, recover real dimensions, generate furniture, and arrange it in 3D.
+        Capture rooms, recover real dimensions, generate furniture, and arrange it in 3D.{" "}
+        <Link href="/project/demo-apartment">Explore the demo apartment →</Link>
       </p>
 
       <div className="card" style={{ marginTop: 24 }}>
