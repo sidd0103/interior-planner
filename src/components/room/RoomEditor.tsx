@@ -106,7 +106,7 @@ export function RoomEditor({ projectId, roomId }: Props) {
   }
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
+    <div style={{ display: "flex", height: "100dvh", width: "100%", overflow: "hidden" }}>
       {room &&
         canEdit &&
         (calibrating ? (
@@ -133,7 +133,7 @@ export function RoomEditor({ projectId, roomId }: Props) {
           />
         ))}
 
-      <div style={{ flex: 1, position: "relative" }}>
+      <div style={{ flex: 1, position: "relative", minWidth: 0, overflow: "hidden" }}>
         {canEdit && !calibrating && selectedId && <Toolbar onDelete={onDelete} />}
         <SceneCanvas
           initialView={initialView}

@@ -8,7 +8,7 @@ export default function ApartmentPage() {
   const projectId = useParams().id as string;
 
   return (
-    <div style={{ height: "100vh", width: "100vw", position: "relative" }}>
+    <div style={{ height: "100dvh", width: "100%", position: "relative", overflow: "hidden" }}>
       <div
         style={{
           position: "absolute",
