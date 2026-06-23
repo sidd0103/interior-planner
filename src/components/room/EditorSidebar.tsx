@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePrefs } from "@/lib/scene/prefs";
 import { SidebarSection } from "./SidebarSection";
+import { KebabMenu } from "@/components/ui/Menu";
 import { ChevronRight, PanelLeft, RoomIcon, SofaIcon } from "@/components/ui/icons";
 
 interface Props {
@@ -13,6 +14,8 @@ interface Props {
   furnitureContent: ReactNode;
   /** A furniture item is selected — surface (and auto-expand to) its properties. */
   hasSelection: boolean;
+  /** Delete this room (kebab next to the name). */
+  onDeleteRoom: () => void;
 }
 
 /**
@@ -20,7 +23,14 @@ interface Props {
  * section, collapsible to a 48px icon rail. Minimized state is persisted; a
  * 3D selection temporarily pops the panel open to show the item's properties.
  */
-export function EditorSidebar({ roomName, backHref, roomContent, furnitureContent, hasSelection }: Props) {
+export function EditorSidebar({
+  roomName,
+  backHref,
+  roomContent,
+  furnitureContent,
+  hasSelection,
+  onDeleteRoom,
+}: Props) {
   const collapsed = usePrefs((s) => s.sidebarCollapsed);
   const setCollapsed = usePrefs((s) => s.setSidebarCollapsed);
   const [roomOpen, setRoomOpen] = useState(true);
@@ -100,9 +110,12 @@ export function EditorSidebar({ roomName, backHref, roomContent, furnitureConten
             {roomName}
           </div>
         </div>
-        <button className="icon-btn" title="Collapse panel" onClick={() => setCollapsed(true)}>
-          <PanelLeft size={16} />
-        </button>
+        <div className="row" style={{ gap: 2 }}>
+          <KebabMenu items={[{ label: "Delete room", danger: true, onClick: onDeleteRoom }]} />
+          <button className="icon-btn" title="Collapse panel" onClick={() => setCollapsed(true)}>
+            <PanelLeft size={16} />
+          </button>
+        </div>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto" }}>

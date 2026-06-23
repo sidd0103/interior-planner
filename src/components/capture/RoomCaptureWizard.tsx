@@ -3,6 +3,7 @@
 import { useState } from "react";
 import * as repo from "@/lib/storage/repo";
 import { uploadAsset } from "@/lib/storage/uploadAsset";
+import { KebabMenu } from "@/components/ui/Menu";
 import { CaptureStatus } from "./CaptureStatus";
 import type { Room } from "@/lib/storage/types";
 
@@ -117,24 +118,29 @@ export function RoomCaptureWizard({ room, onUpdate }: Props) {
     <div className="card col" style={{ gap: 10 }}>
       <div className="row" style={{ justifyContent: "space-between" }}>
         <strong style={{ fontSize: 14 }}>Room capture</strong>
-        <CaptureStatus room={room} onUpdate={onUpdate} />
+        <div className="row" style={{ gap: 4 }}>
+          <CaptureStatus room={room} onUpdate={onUpdate} />
+          {room.splatAssetId && (
+            <KebabMenu
+              items={[
+                {
+                  label: "Clear scene",
+                  danger: true,
+                  onClick: async () => {
+                    await repo.updateRoom(room.id, { splatAssetId: undefined });
+                    onUpdate();
+                  },
+                },
+              ]}
+            />
+          )}
+        </div>
       </div>
 
       {room.splatAssetId ? (
-        <div className="col" style={{ gap: 8 }}>
-          <span className="muted" style={{ fontSize: 12 }}>
-            Scene loaded. Re-capture to replace it.
-          </span>
-          <button
-            className="danger"
-            onClick={async () => {
-              await repo.updateRoom(room.id, { splatAssetId: undefined });
-              onUpdate();
-            }}
-          >
-            Clear scene
-          </button>
-        </div>
+        <span className="muted" style={{ fontSize: 12 }}>
+          Scene loaded. Re-capture to replace it.
+        </span>
       ) : (
         <>
           <div className="row" style={{ gap: 6 }}>

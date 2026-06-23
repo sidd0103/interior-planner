@@ -80,3 +80,10 @@ export const CloseIcon = (p: IconProps) => (
     <path d="M18 6L6 18M6 6l12 12" />
   </Icon>
 );
+export const DotsVertical = (p: IconProps) => (
+  <Icon {...p} fill="currentColor" stroke="none">
+    <circle cx="12" cy="5" r="1.7" />
+    <circle cx="12" cy="12" r="1.7" />
+    <circle cx="12" cy="19" r="1.7" />
+  </Icon>
+);

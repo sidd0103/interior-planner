@@ -53,6 +53,18 @@ function clean<T>(row: Record<string, unknown>): T {
   return out as T;
 }
 
+/**
+ * Map an update patch's explicit `undefined` values to `null` so they CLEAR the
+ * column. Drizzle's `.set()` skips `undefined` (treats it as "don't change"),
+ * but callers that include a key with `undefined` (e.g. {splatAssetId: undefined})
+ * mean to clear it; fields they want untouched are simply omitted from the patch.
+ */
+function nullify<T extends Record<string, unknown>>(obj: T): T {
+  const out: Record<string, unknown> = {};
+  for (const k in obj) out[k] = obj[k] === undefined ? null : obj[k];
+  return out as T;
+}
+
 /** Delete the Blob objects backing a set of assetIds (rows cascade separately). */
 async function purgeAssets(assetIds: string[]) {
   const ids = assetIds.filter(Boolean);
@@ -162,7 +174,7 @@ export async function updateRoom(id: Id, patch: Partial<Room>): Promise<void> {
   void _omit;
   void _omit2;
   void _omit3;
-  await getDb().update(rooms).set({ ...rest, updatedAt: now() }).where(eq(rooms.id, id));
+  await getDb().update(rooms).set({ ...nullify(rest), updatedAt: now() }).where(eq(rooms.id, id));
 }
 
 export async function deleteRoom(id: Id): Promise<void> {
@@ -197,7 +209,7 @@ export async function updateJob(id: Id, patch: Partial<Job>): Promise<void> {
   const { id: _o, createdAt: _o3, ...rest } = patch;
   void _o;
   void _o3;
-  await getDb().update(jobs).set({ ...rest, updatedAt: now() }).where(eq(jobs.id, id));
+  await getDb().update(jobs).set({ ...nullify(rest), updatedAt: now() }).where(eq(jobs.id, id));
 }
 
 // --- Measurements ---
@@ -223,7 +235,7 @@ export async function updateMeasurement(id: Id, patch: Partial<Measurement>): Pr
   void _o;
   void _o2;
   void _o3;
-  await getDb().update(measurements).set({ ...rest, updatedAt: now() }).where(eq(measurements.id, id));
+  await getDb().update(measurements).set({ ...nullify(rest), updatedAt: now() }).where(eq(measurements.id, id));
 }
 
 export async function deleteMeasurement(id: Id): Promise<void> {
@@ -260,7 +272,7 @@ export async function updateFurniture(id: Id, patch: Partial<FurnitureAsset>): P
   void _o;
   void _o2;
   void _o3;
-  await getDb().update(furniture).set({ ...rest, updatedAt: now() }).where(eq(furniture.id, id));
+  await getDb().update(furniture).set({ ...nullify(rest), updatedAt: now() }).where(eq(furniture.id, id));
 }
 
 export async function deleteFurniture(id: Id): Promise<void> {
@@ -309,7 +321,7 @@ export async function updatePlaced(id: Id, patch: Partial<PlacedFurniture>): Pro
   void _o2;
   void _o3;
   void _o4;
-  await getDb().update(placed).set({ ...rest, updatedAt: now() }).where(eq(placed.id, id));
+  await getDb().update(placed).set({ ...nullify(rest), updatedAt: now() }).where(eq(placed.id, id));
 }
 
 export async function removePlaced(id: Id): Promise<void> {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import useSWR from "swr";
 import * as repo from "@/lib/storage/repo";
+import { TrashIcon } from "@/components/ui/icons";
 
 export default function ProjectPage() {
   const projectId = useParams().id as string;
@@ -29,6 +30,12 @@ export default function ProjectPage() {
     if (!name) return;
     await repo.createRoom(projectId, name);
     setRoomName("");
+    mutateRooms();
+  }
+
+  async function removeRoom(id: string, name: string) {
+    if (!confirm(`Delete room “${name}” and everything in it?`)) return;
+    await repo.deleteRoom(id);
     mutateRooms();
   }
 
@@ -101,26 +108,37 @@ export default function ProjectPage() {
         <div className="col" style={{ marginTop: 14 }}>
           {rooms?.length === 0 && <p className="muted">No rooms yet.</p>}
           {rooms?.map((r) => (
-            <Link
-              key={r.id}
-              href={`/project/${projectId}/room/${r.id}`}
-              className="card row"
-              style={{ justifyContent: "space-between" }}
-            >
-              <span style={{ fontWeight: 600 }}>{r.name}</span>
-              <span className="row">
-                {r.splatAssetId ? (
-                  <span className="badge ok">captured</span>
-                ) : (
-                  <span className="badge">not captured</span>
-                )}
-                {r.metricTransform ? (
-                  <span className="badge ok">scaled</span>
-                ) : (
-                  <span className="badge">unscaled</span>
-                )}
-              </span>
-            </Link>
+            <div key={r.id} className="card row" style={{ gap: 8, padding: 14 }}>
+              <Link
+                href={`/project/${projectId}/room/${r.id}`}
+                className="row"
+                style={{ flex: 1, minWidth: 0, justifyContent: "space-between", color: "var(--text)" }}
+              >
+                <span style={{ fontWeight: 600 }}>{r.name}</span>
+                <span className="row">
+                  {r.splatAssetId ? (
+                    <span className="badge ok">captured</span>
+                  ) : (
+                    <span className="badge">not captured</span>
+                  )}
+                  {r.metricTransform ? (
+                    <span className="badge ok">scaled</span>
+                  ) : (
+                    <span className="badge">unscaled</span>
+                  )}
+                </span>
+              </Link>
+              {canEdit && (
+                <button
+                  className="icon-btn"
+                  title="Delete room"
+                  onClick={() => removeRoom(r.id, r.name)}
+                  style={{ color: "#ff8a8c" }}
+                >
+                  <TrashIcon size={15} />
+                </button>
+              )}
+            </div>
           ))}
         </div>
       </section>

@@ -235,6 +235,41 @@ input::placeholder {
   background: rgba(0, 112, 243, 0.08);
 }
 
+/* --- Floating menu (kebab) --- */
+.menu {
+  min-width: 168px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+.menu-item {
+  justify-content: flex-start;
+  width: 100%;
+  height: 30px;
+  font-size: 13px;
+  font-weight: 400;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+}
+.menu-item:hover:not(:disabled) {
+  background: var(--panel-2);
+  border-color: transparent;
+}
+.menu-item.danger {
+  color: #ff8a8c;
+  background: transparent;
+}
+.menu-item.danger:hover:not(:disabled) {
+  background: rgba(229, 72, 77, 0.12);
+}
+
 /* --- Keycap (toolbar shortcuts) --- */
 .kbd {
   display: inline-flex;

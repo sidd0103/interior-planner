@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { Loader } from "@react-three/drei";
 import { SceneCanvas } from "@/components/scene/SceneCanvas";
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export function RoomEditor({ projectId, roomId }: Props) {
+  const router = useRouter();
   const { items, placed, mutate } = useSceneItems(roomId);
   const { selectedId, select } = useEditor();
   const { data: room, mutate: mutateRoom } = useSWR(["room", roomId], () => repo.getRoom(roomId));
@@ -98,6 +100,12 @@ export function RoomEditor({ projectId, roomId }: Props) {
     mutate();
   }
 
+  async function deleteRoom() {
+    if (!confirm(`Delete room “${room?.name ?? ""}” and everything in it?`)) return;
+    await repo.deleteRoom(roomId);
+    router.push(`/project/${projectId}`);
+  }
+
   // The GLB's actual rendered size becomes the asset's stored dims, so the box,
   // labels, collision, and editor all agree (and the box wraps the mesh tight).
   async function onMeasure(assetId: string, size: { width: number; height: number; depth: number }) {
@@ -116,6 +124,7 @@ export function RoomEditor({ projectId, roomId }: Props) {
             roomName={room.name}
             backHref={`/project/${projectId}`}
             hasSelection={!!selectedId}
+            onDeleteRoom={deleteRoom}
             roomContent={
               <RoomSection room={room} onUpdate={mutateRoom} onCalibrate={startCalibrating} />
             }
