@@ -1,35 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getAssetUrl, revokeAssetUrl } from "./blobStore";
-
 /**
- * Resolve a blob-store assetId to an object URL for the lifetime of the
- * component. The URL is revoked on unmount or when the id changes.
+ * Resolve an assetId to its authenticated read URL — the /api/asset/<id> proxy,
+ * which access-checks the request and streams the private Blob. Same-origin, so
+ * the browser sends the session cookie automatically.
  */
 export function useAssetUrl(assetId?: string): string | undefined {
-  const [url, setUrl] = useState<string>();
+  return assetId ? `/api/asset/${assetId}` : undefined;
+}
 
-  useEffect(() => {
-    if (!assetId) {
-      setUrl(undefined);
-      return;
-    }
-    let active = true;
-    let created: string | undefined;
-    getAssetUrl(assetId).then((u) => {
-      if (!active) {
-        if (u) revokeAssetUrl(u);
-        return;
-      }
-      created = u;
-      setUrl(u);
-    });
-    return () => {
-      active = false;
-      if (created) revokeAssetUrl(created);
-    };
-  }, [assetId]);
-
-  return url;
+/** Non-hook variant for building the same URL outside React. */
+export function assetSrc(assetId?: string): string | undefined {
+  return assetId ? `/api/asset/${assetId}` : undefined;
 }

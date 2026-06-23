@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import * as repo from "@/lib/storage/repo";
-import { putAsset } from "@/lib/storage/blobStore";
+import { uploadAsset } from "@/lib/storage/uploadAsset";
 import { fileToDataUri } from "@/lib/util/file";
 import { usePrefs } from "@/lib/scene/prefs";
 import { smallToMeters, smallUnitLabel } from "@/lib/geometry/units";
@@ -56,7 +56,7 @@ export function FurnitureGenerator({ projectId, onCreated }: Props) {
       depth: smallToMeters(+d, unitSystem),
       height: smallToMeters(+h, unitSystem),
     };
-    const sourceImageAssetId = await putAsset(file);
+    const sourceImageAssetId = await uploadAsset(file, projectId, "furniture");
     const asset = await repo.createFurniture({
       projectId,
       name: name.trim(),

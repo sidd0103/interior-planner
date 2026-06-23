@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import * as repo from "@/lib/storage/repo";
-import { putAsset } from "@/lib/storage/blobStore";
+import { uploadAsset } from "@/lib/storage/uploadAsset";
 import { CaptureStatus } from "./CaptureStatus";
 import type { Room } from "@/lib/storage/types";
 
@@ -100,7 +100,7 @@ export function RoomCaptureWizard({ room, onUpdate }: Props) {
       const splatFormat = (SPLAT_EXTS as readonly string[]).includes(ext)
         ? (ext as SplatExt)
         : undefined;
-      const splatAssetId = await putAsset(file);
+      const splatAssetId = await uploadAsset(file, room.projectId, "rooms");
       await repo.updateRoom(room.id, { splatAssetId, splatFormat });
       setFiles([]);
       onUpdate();

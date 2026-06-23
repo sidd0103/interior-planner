@@ -31,7 +31,6 @@ import {
   projectIdOfMeasurement,
   projectIdOfPlaced,
   projectIdOfJob,
-  projectIdOfAsset,
 } from "@/lib/auth/dal";
 import { del as blobDel } from "@vercel/blob";
 import { newId } from "./id";
@@ -293,18 +292,11 @@ export async function removePlaced(id: Id): Promise<void> {
   await getDb().delete(placed).where(eq(placed.id, id));
 }
 
-// --- Assets (blob layer; full impl wired in P3) ---
+// --- Assets (private Blob; reads go through the /api/asset/<id> proxy) ---
 
-/** Resolve an assetId → its Vercel Blob public URL (access-checked). */
+/** The authenticated read URL for an assetId (the proxy enforces access). */
 export async function getAssetUrl(assetId: Id): Promise<string | undefined> {
-  if (!assetId) return undefined;
-  if (!(await canRead(await projectIdOfAsset(assetId)))) return undefined;
-  const rows = await getDb()
-    .select({ url: assets.blobUrl })
-    .from(assets)
-    .where(eq(assets.id, assetId))
-    .limit(1);
-  return rows[0]?.url;
+  return assetId ? `/api/asset/${assetId}` : undefined;
 }
 
 /** Insert an `assets` row for an already-uploaded Blob; returns the assetId. */
