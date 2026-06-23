@@ -37,7 +37,7 @@ export function AppHeader() {
             <Link href="/settings" className="muted" style={{ fontSize: 13 }}>
               Settings
             </Link>
-            <span className="muted" style={{ fontSize: 13 }}>
+            <span className="muted hide-sm" style={{ fontSize: 13 }}>
               {session.user.email}
             </span>
             <button

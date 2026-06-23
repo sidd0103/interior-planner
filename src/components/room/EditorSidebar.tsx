@@ -43,6 +43,7 @@ export function EditorSidebar({
   if (showRail) {
     return (
       <div
+        className="sidebar-rail"
         style={{
           width: 48,
           flexShrink: 0,

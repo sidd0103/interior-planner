@@ -34,7 +34,13 @@ export function SceneCanvas({ children, initialView, onPointerDown, onPointerMis
       camera={{ position: [4, 3, 6], fov: 60, near: 0.01, far: 1000 }}
       onPointerDown={onPointerDown}
       onPointerMissed={onPointerMissed ?? (() => select(null))}
-      style={{ width: "100%", height: "100%", display: "block", background: "#0b0d11" }}
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "block",
+        background: "#0b0d11",
+        touchAction: "none",
+      }}
       resize={{ debounce: 0 }}
     >
       <FirstPersonControls initialView={initialView} />

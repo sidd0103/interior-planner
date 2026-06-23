@@ -32,6 +32,12 @@
   box-sizing: border-box;
 }
 
+/* The 3D canvas handles its own gestures (look / pinch / pan) — keep the
+   browser from hijacking touch (scroll, pinch-zoom) on it. */
+canvas {
+  touch-action: none;
+}
+
 html,
 body {
   margin: 0;
@@ -322,6 +328,35 @@ input::placeholder {
 }
 .section-body {
   padding: 4px 14px 14px;
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 24px;
+  }
+  /* The editor sidebar/rail overlay the canvas instead of squeezing it. */
+  .sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 30;
+    max-width: 88vw;
+    box-shadow: var(--shadow-lg);
+  }
+  .sidebar-rail {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 30;
+  }
+  /* Header/action rows wrap rather than overflow. */
+  .wrap-sm {
+    flex-wrap: wrap;
+  }
+  .hide-sm {
+    display: none;
+  }
 }
 
 /* Scrollbars (subtle, Vercel-like) */

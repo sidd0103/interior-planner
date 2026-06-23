@@ -46,35 +46,73 @@ export function FirstPersonControls({ initialView, speed = 2.6, sensitivity = 0.
     applied.current = true;
   }, [initialView, camera]);
 
-  // Drag to look + scroll to dolly.
+  // Pointer navigation (mouse + touch):
+  //  - one pointer drag → look around
+  //  - two-finger pinch → dolly forward/back; two-finger drag → pan/strafe
+  //  - mouse wheel → dolly (desktop)
   useEffect(() => {
     const el = gl.domElement;
-    const drag = { active: false, x: 0, y: 0 };
+    const pointers = new Map<number, { x: number; y: number }>();
+    let prevDist = 0;
+    let prevCx = 0;
+    let prevCy = 0;
+
+    const twoFingerState = () => {
+      const [a, b] = [...pointers.values()];
+      prevDist = Math.hypot(a.x - b.x, a.y - b.y);
+      prevCx = (a.x + b.x) / 2;
+      prevCy = (a.y + b.y) / 2;
+    };
 
     const onDown = (e: PointerEvent) => {
-      if (e.button !== 0) return;
-      drag.active = true;
-      drag.x = e.clientX;
-      drag.y = e.clientY;
-      // Re-sync from the camera in case something else moved it.
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 2) twoFingerState();
       euler.current.setFromQuaternion(camera.quaternion);
     };
+
     const onMove = (e: PointerEvent) => {
-      if (!drag.active) return;
-      // Don't rotate the view while dragging the furniture gizmo.
+      const p = pointers.get(e.pointerId);
+      if (!p) return;
+      const px = p.x;
+      const py = p.y;
+      p.x = e.clientX;
+      p.y = e.clientY;
+      // Don't drive the camera while dragging the furniture gizmo.
       if (useEditor.getState().dragging) return;
-      const dx = e.clientX - drag.x;
-      const dy = e.clientY - drag.y;
-      drag.x = e.clientX;
-      drag.y = e.clientY;
-      euler.current.y -= dx * sensitivity;
-      euler.current.x -= dy * sensitivity;
-      euler.current.x = Math.max(-HALF_PI + 0.02, Math.min(HALF_PI - 0.02, euler.current.x));
-      camera.quaternion.setFromEuler(euler.current);
+
+      if (pointers.size === 1) {
+        euler.current.y -= (e.clientX - px) * sensitivity;
+        euler.current.x -= (e.clientY - py) * sensitivity;
+        euler.current.x = Math.max(-HALF_PI + 0.02, Math.min(HALF_PI - 0.02, euler.current.x));
+        camera.quaternion.setFromEuler(euler.current);
+      } else if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        const dist = Math.hypot(a.x - b.x, a.y - b.y);
+        const cx = (a.x + b.x) / 2;
+        const cy = (a.y + b.y) / 2;
+
+        // Pinch → dolly along the view direction.
+        const forward = new THREE.Vector3();
+        camera.getWorldDirection(forward);
+        camera.position.addScaledVector(forward, (dist - prevDist) * 0.01);
+
+        // Two-finger drag → strafe (centroid horizontal) + rise/fall (vertical).
+        const rightV = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+        camera.position.addScaledVector(rightV, (cx - prevCx) * -0.006);
+        camera.position.y += (cy - prevCy) * 0.006;
+
+        prevDist = dist;
+        prevCx = cx;
+        prevCy = cy;
+      }
     };
-    const onUp = () => {
-      drag.active = false;
+
+    const onUp = (e: PointerEvent) => {
+      pointers.delete(e.pointerId);
+      if (pointers.size === 2) twoFingerState();
     };
+
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const forward = new THREE.Vector3();
@@ -85,11 +123,13 @@ export function FirstPersonControls({ initialView, speed = 2.6, sensitivity = 0.
     el.addEventListener("pointerdown", onDown);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => {
       el.removeEventListener("pointerdown", onDown);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
       el.removeEventListener("wheel", onWheel);
     };
   }, [camera, gl, sensitivity]);

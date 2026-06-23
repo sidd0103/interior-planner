@@ -51,15 +51,15 @@ export default function ProjectPage() {
   }
 
   return (
-    <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px" }}>
-      <div className="row" style={{ justifyContent: "space-between" }}>
+    <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px clamp(16px, 4vw, 24px)" }}>
+      <div className="row wrap-sm" style={{ justifyContent: "space-between", gap: 12 }}>
         <div>
           <Link href="/" className="muted" style={{ fontSize: 13 }}>
             ← All projects
           </Link>
           <h1 style={{ margin: "6px 0 0" }}>{project?.name ?? "…"}</h1>
         </div>
-        <div className="row" style={{ gap: 8, alignItems: "center" }}>
+        <div className="row wrap-sm" style={{ gap: 8, alignItems: "center" }}>
           {canEdit && (
             <>
               <span className={`badge ${isPublic ? "ok" : ""}`}>

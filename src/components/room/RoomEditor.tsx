@@ -185,8 +185,8 @@ export function RoomEditor({ projectId, roomId }: Props) {
           style={{ position: "absolute", bottom: 12, left: 12, fontSize: 12, zIndex: 10 }}
         >
           {calibrating
-            ? `WASD to walk · drag to look · ${calib.tool === "measure" ? "click to place tape points" : "drag the box faces"}`
-            : `${items.length} item(s) · WASD to walk · drag to look · scroll to move · drag the gizmo to move furniture`}
+            ? `drag to look · pinch/scroll to move · ${calib.tool === "measure" ? "tap to place tape points" : "drag the box faces"}`
+            : `${items.length} item(s) · drag to look · pinch or scroll to move · two-finger drag / WASD to pan`}
         </div>
         <Loader />
       </div>
