@@ -21,6 +21,8 @@ interface Props {
   worldBounds?: WorldBox;
   /** Reports a mesh's actual rendered size (to persist as the asset's dims). */
   onMeasure?: (assetId: string, size: SceneItem["realDims"]) => void;
+  /** View-only (public share): no transform gizmo / editing. */
+  readOnly?: boolean;
 }
 
 /**
@@ -35,6 +37,7 @@ export function RoomScene({
   showGrid = true,
   worldBounds,
   onMeasure,
+  readOnly,
 }: Props) {
   const { selectedId, mode, select, setDragging } = useEditor();
 
@@ -134,7 +137,7 @@ export function RoomScene({
         ))}
       </Suspense>
 
-      {selectedObj && (
+      {selectedObj && !readOnly && (
         <TransformControls
           object={selectedObj}
           mode={mode}

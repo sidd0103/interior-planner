@@ -9,6 +9,9 @@ import * as repo from "@/lib/storage/repo";
 export default function ProjectPage() {
   const projectId = useParams().id as string;
   const { data: project } = useSWR(["project", projectId], () => repo.getProject(projectId));
+  const { data: access, mutate: mutateAccess } = useSWR(["access", projectId], () =>
+    repo.getProjectAccess(projectId),
+  );
   const { data: rooms, mutate: mutateRooms } = useSWR(["rooms", projectId], () =>
     repo.listRooms(projectId),
   );
@@ -16,6 +19,10 @@ export default function ProjectPage() {
     repo.listFurniture(projectId),
   );
   const [roomName, setRoomName] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const canEdit = access?.canEdit ?? false;
+  const isPublic = access?.visibility === "public";
 
   async function addRoom() {
     const name = roomName.trim();
@@ -23,6 +30,17 @@ export default function ProjectPage() {
     await repo.createRoom(projectId, name);
     setRoomName("");
     mutateRooms();
+  }
+
+  async function toggleVisibility() {
+    await repo.setProjectVisibility(projectId, isPublic ? "private" : "public");
+    mutateAccess();
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(`${location.origin}/project/${projectId}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   }
 
   return (
@@ -34,27 +52,51 @@ export default function ProjectPage() {
           </Link>
           <h1 style={{ margin: "6px 0 0" }}>{project?.name ?? "…"}</h1>
         </div>
-        <Link href={`/project/${projectId}/apartment`}>
-          <button className="primary">Apartment 3D view</button>
-        </Link>
+        <div className="row" style={{ gap: 8, alignItems: "center" }}>
+          {canEdit && (
+            <>
+              <span className={`badge ${isPublic ? "ok" : ""}`}>
+                {isPublic ? "Public" : "Private"}
+              </span>
+              <button onClick={toggleVisibility} title="Toggle who can view this project">
+                {isPublic ? "Make private" : "Make public"}
+              </button>
+              {isPublic && (
+                <button onClick={copyLink}>{copied ? "Copied!" : "Copy link"}</button>
+              )}
+            </>
+          )}
+          <Link href={`/project/${projectId}/apartment`}>
+            <button className="primary">Apartment 3D view</button>
+          </Link>
+        </div>
       </div>
+      {isPublic && (
+        <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+          {canEdit
+            ? "Anyone with the link can view this project (read-only)."
+            : "You're viewing a shared project (read-only)."}
+        </p>
+      )}
 
       <section style={{ marginTop: 28 }}>
         <h2 style={{ fontSize: 18 }}>Rooms</h2>
-        <div className="card">
-          <div className="row">
-            <input
-              placeholder="Room name (e.g. Living Room)"
-              value={roomName}
-              onChange={(e) => setRoomName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addRoom()}
-              style={{ flex: 1 }}
-            />
-            <button className="primary" onClick={addRoom} disabled={!roomName.trim()}>
-              Add room
-            </button>
+        {canEdit && (
+          <div className="card">
+            <div className="row">
+              <input
+                placeholder="Room name (e.g. Living Room)"
+                value={roomName}
+                onChange={(e) => setRoomName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addRoom()}
+                style={{ flex: 1 }}
+              />
+              <button className="primary" onClick={addRoom} disabled={!roomName.trim()}>
+                Add room
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="col" style={{ marginTop: 14 }}>
           {rooms?.length === 0 && <p className="muted">No rooms yet.</p>}

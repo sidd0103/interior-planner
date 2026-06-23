@@ -102,6 +102,31 @@ export async function renameProject(id: Id, name: string): Promise<void> {
   await getDb().update(projects).set({ name, updatedAt: now() }).where(eq(projects.id, id));
 }
 
+/** Set a project's share visibility (owner only). */
+export async function setProjectVisibility(
+  id: Id,
+  visibility: "private" | "public",
+): Promise<void> {
+  await requireWrite(id);
+  await getDb().update(projects).set({ visibility, updatedAt: now() }).where(eq(projects.id, id));
+}
+
+/** Visibility + whether the current viewer may edit; undefined if no read access. */
+export async function getProjectAccess(
+  id: Id,
+): Promise<{ visibility: "private" | "public"; canEdit: boolean } | undefined> {
+  const uid = await currentUserId();
+  const rows = await getDb()
+    .select({ ownerId: projects.userId, visibility: projects.visibility })
+    .from(projects)
+    .where(eq(projects.id, id))
+    .limit(1);
+  const p = rows[0];
+  if (!p) return undefined;
+  if (p.visibility !== "public" && p.ownerId !== uid) return undefined;
+  return { visibility: p.visibility, canEdit: p.ownerId === uid };
+}
+
 /** Delete a project and (via DB cascade) everything under it; Blob objects too. */
 export async function deleteProject(id: Id): Promise<void> {
   await requireWrite(id);

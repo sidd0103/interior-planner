@@ -28,6 +28,8 @@ export function RoomEditor({ projectId, roomId }: Props) {
   const { items, placed, mutate } = useSceneItems(roomId);
   const { selectedId, select } = useEditor();
   const { data: room, mutate: mutateRoom } = useSWR(["room", roomId], () => repo.getRoom(roomId));
+  const { data: access } = useSWR(["access", projectId], () => repo.getProjectAccess(projectId));
+  const canEdit = access?.canEdit ?? false;
   const splatUrl = useAssetUrl(room?.splatAssetId);
 
   const [calibrating, setCalibrating] = useState(false);
@@ -105,6 +107,7 @@ export function RoomEditor({ projectId, roomId }: Props) {
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
       {room &&
+        canEdit &&
         (calibrating ? (
           <CalibratePanel calib={calib} onDone={stopCalibrating} />
         ) : (
@@ -117,7 +120,7 @@ export function RoomEditor({ projectId, roomId }: Props) {
         ))}
 
       <div style={{ flex: 1, position: "relative" }}>
-        {!calibrating && selectedId && <Toolbar onDelete={onDelete} />}
+        {canEdit && !calibrating && selectedId && <Toolbar onDelete={onDelete} />}
         <SceneCanvas
           initialView={initialView}
           onPointerDown={(e) => (downPos.current = { x: e.clientX, y: e.clientY })}
@@ -137,6 +140,7 @@ export function RoomEditor({ projectId, roomId }: Props) {
             onTransform={onTransform}
             worldBounds={calibrating ? undefined : worldBounds}
             onMeasure={onMeasure}
+            readOnly={!canEdit}
           >
             {splatUrl && (
               <SplatRoom
@@ -164,7 +168,7 @@ export function RoomEditor({ projectId, roomId }: Props) {
         <Loader />
       </div>
 
-      {!calibrating && (
+      {canEdit && !calibrating && (
         <FurniturePanel
           projectId={projectId}
           roomName={room?.name ?? "Room"}
